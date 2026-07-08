@@ -142,7 +142,16 @@ app.post('/api/sync', async (req, res) => {
 
 app.get('/api/dashboard', (req, res) => {
   const timeframe = req.query.timeframe === 'week' ? 'week' : '24h';
-  res.json({ success: true, data: dashboardData[timeframe] || [] });
+  const limits = getSyncLimits();
+  res.json({ 
+    success: true, 
+    data: dashboardData[timeframe] || [],
+    meta: {
+      lastSync: limits.lastSync,
+      manualSyncsUsed: limits.count,
+      manualSyncsMax: 50
+    }
+  });
 });
 
 app.post('/api/snapshot', (req, res) => {

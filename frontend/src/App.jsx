@@ -11,7 +11,8 @@ function App() {
   const [timeframe, setTimeframe] = useState('24h');
   const [snapshotMode, setSnapshotMode] = useState(false);
   const [singleDevMode, setSingleDevMode] = useState(null);
-  const [limits, setLimits] = useState({ count: 0, max: 10 });
+  const [meta, setMeta] = useState({ lastSync: 0, manualSyncsUsed: 0, manualSyncsMax: 50 });
+  const [selectedDevId, setSelectedDevId] = useState('all');
   
   // Basic markdown generator
   const copyMarkdown = () => {
@@ -55,13 +56,10 @@ function App() {
     }
   };
   
-  const fetchLimits = async () => {
-    try {
-      const res = await axios.get('/api/limits');
-      if (res.data.success) {
-        setLimits({ count: res.data.count, max: res.data.max });
-      }
-    } catch (e) {}
+  const formatLastSync = (ts) => {
+    if (!ts) return 'Ніколи';
+    const d = new Date(ts);
+    return d.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
   };
 
   const fetchDashboardData = async (selectedTimeframe = timeframe, snapshotId = null) => {
@@ -77,10 +75,12 @@ function App() {
       
       if (response.data.success) {
         setData(response.data.data || []);
+        if (response.data.meta) {
+          setMeta(response.data.meta);
+        }
       } else {
         throw new Error(response.data.error || 'Невідома помилка');
       }
-      fetchLimits();
     } catch (err) {
       setError(err.response?.data?.error || err.message);
     } finally {
@@ -195,17 +195,39 @@ function App() {
               <div className="flex flex-col items-end ml-2">
                 <button 
                   onClick={triggerManualSync}
-                  disabled={loading || limits.count >= limits.max}
+                  disabled={loading || meta.manualSyncsUsed >= meta.manualSyncsMax}
                   className="flex items-center gap-2 text-[14px] font-medium text-blue-400 hover:text-blue-300 transition-colors disabled:opacity-50"
                 >
                   <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                  {loading ? 'Оновлення...' : 'Синхронізувати'}
+                  {loading ? 'Оновлення...' : 'Примусово оновити'}
                 </button>
-                <span className="text-[11px] text-gray-500 mt-1">Оновлень сьогодні: {limits.count}/{limits.max}</span>
+                <div className="flex flex-col text-right">
+                  <span className="text-[11px] text-gray-500 mt-1">Останнє оновлення: {formatLastSync(meta.lastSync)}</span>
+                  <span className="text-[11px] text-gray-500">Ручні оновлення: {meta.manualSyncsUsed}/{meta.manualSyncsMax}</span>
+                </div>
               </div>
             )}
           </div>
         </div>
+
+        {/* Filters */}
+        {data.length > 0 && !snapshotMode && (
+          <div className="flex items-center gap-4 bg-[#2a2a2a] p-3 rounded-lg border border-[#333]">
+            <span className="text-sm text-gray-400 font-medium">Фільтр:</span>
+            <select
+              value={selectedDevId}
+              onChange={(e) => setSelectedDevId(e.target.value)}
+              className="bg-[#1f1f1f] text-white border border-[#444] rounded px-3 py-1.5 text-sm outline-none focus:border-blue-500 transition-colors"
+            >
+              <option value="all">👥 Вся команда</option>
+              {data.map(item => (
+                <option key={item.developer.id} value={item.developer.id}>
+                  {item.developer.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Content */}
         {loading && data.length === 0 ? (
@@ -226,7 +248,7 @@ function App() {
           />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
-            {data.map((item, index) => (
+            {(selectedDevId === 'all' ? data : data.filter(d => d.developer.id === selectedDevId)).map((item, index) => (
               <DeveloperCard 
                 key={item.developer?.id || index} 
                 developer={item.developer} 
