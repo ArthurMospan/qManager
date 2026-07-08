@@ -109,10 +109,10 @@ app.post('/api/sync', async (req, res) => {
     
     if (!isCron) {
       const limits = getSyncLimits();
-      if (limits.count >= 10) {
+      if (limits.count >= 50) {
         return res.status(429).json({ 
           success: false, 
-          error: 'Досягнуто ліміт оновлень через ШІ на сьогодні (10/10). Спробуйте завтра.' 
+          error: 'Досягнуто денний ліміт ручних оновлень (50/50). Спробуйте завтра або зачекайте на фонове оновлення.' 
         });
       }
       
@@ -158,10 +158,15 @@ app.get('/api/snapshot/:id', (req, res) => {
   }
 });
 
-cron.schedule('0 18 * * *', () => {
-  console.log('Running scheduled sync via cron (24h)...');
-  // Pass cron=true to bypass the 3/3 daily limit for automated tasks
-  runSyncProcess('24h').catch(err => console.error(err));
+// Фонове оновлення щогодини
+cron.schedule('0 * * * *', async () => {
+  console.log('Running scheduled hourly background sync...');
+  try {
+    await runSyncProcess('24h');
+    await runSyncProcess('week');
+  } catch (err) {
+    console.error('Hourly sync failed:', err);
+  }
 });
 
 require('./bot'); 
