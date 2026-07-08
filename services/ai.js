@@ -85,7 +85,7 @@ async function analyzeDeveloperActivity(developerData, timeframe) {
     console.error('Error in AI processing:', error);
     return {
       summary_done: [],
-      in_progress: ["Помилка обробки даних ШІ"],
+      in_progress: [`Помилка ШІ: ${error.message || error}`],
       blockers: null,
       time_tracked_hours: developerData.totalHours || 0,
       daily_hours: developerData.dailyHours || [0,0,0,0,0,0,0]
