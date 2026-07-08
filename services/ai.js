@@ -3,7 +3,8 @@ const dotenv = require('dotenv');
 
 dotenv.config();
 
-const ai = new GoogleGenAI({ apiKey: process.env.AI_API_KEY });
+const rawKeys = process.env.GEMINI_API_KEY || process.env.AI_API_KEY || '';
+const API_KEYS = rawKeys.split(',').map(k => k.trim()).filter(Boolean);
 
 const schema = {
   type: Type.ARRAY,
@@ -88,14 +89,34 @@ async function analyzeTeamActivity(groupedData, timeframe) {
     ${JSON.stringify(developersToAnalyze, null, 2)}
     `;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: schema,
+    let response;
+    let lastError;
+    
+    if (API_KEYS.length === 0) {
+      throw new Error("No AI API keys configured (GEMINI_API_KEY).");
+    }
+
+    for (let i = 0; i < API_KEYS.length; i++) {
+      try {
+        const ai = new GoogleGenAI({ apiKey: API_KEYS[i] });
+        response = await ai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: prompt,
+          config: {
+            responseMimeType: "application/json",
+            responseSchema: schema,
+          }
+        });
+        break; // Success, exit loop
+      } catch (err) {
+        lastError = err;
+        if (err.status === 429 && i < API_KEYS.length - 1) {
+          console.log(`[AI] Ключ ${i+1} вичерпав ліміт. Перемикаюсь на ключ ${i+2}...`);
+          continue;
+        }
+        throw err; // If not 429, or it's the last key, throw
       }
-    });
+    }
 
     const parsedArray = JSON.parse(response.text);
     
