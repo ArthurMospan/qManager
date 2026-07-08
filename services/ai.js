@@ -48,10 +48,16 @@ async function analyzeDeveloperActivity(developerData, timeframe) {
     The data below contains only the tasks they explicitly touched during this period (logged time or made comments).
     
     Extract:
-    1. Tasks they made progress on or completed (based on their time logged and comments). 
+    1. Tasks they made progress on or completed (based ONLY on their time logged and their own comments). 
        ${isWeek ? 'IMPORTANT: Include the day(s) of the week they worked on each task in the description.' : ''}
     2. What they are currently working on.
     3. Any blockers they mentioned in their comments.
+
+    CRITICAL RULES FOR ACCURACY (PREVENT HALLUCINATIONS):
+    - DO NOT invent or assume any context. Be extremely factual.
+    - If another user (like a manager) commented on the task tagging this developer (e.g., "what should we do next?"), DO NOT say the developer initiated a discussion or planned the task. Only report what the DEVELOPER actually did or replied.
+    - If a comment is vague, summarize it using exact quotes or literal translation, do not try to guess the deep meaning.
+    - Keep it short, professional, and clear.
 
     CRITICAL REQUIREMENT: 
     ALL generated text (summaries, blockers, etc.) MUST be strictly in UKRAINIAN language. 
