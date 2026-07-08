@@ -224,9 +224,23 @@ bot.on('callback_query', async (callbackQuery) => {
             contentType: 'text/markdown'
           });
           
-          bot.sendMessage(chatId, '✅ Звіт всієї команди успішно згенеровано!');
+          const dashboardUrl = process.env.RENDER_EXTERNAL_URL || `http://localhost:${process.env.PORT || 5000}`;
+          bot.sendMessage(chatId, '✅ Звіт всієї команди успішно згенеровано!', {
+            reply_markup: {
+              inline_keyboard: [[
+                { text: "📊 Відкрити Дашборд", web_app: { url: dashboardUrl } }
+              ]]
+            }
+          });
         } else {
-          bot.sendMessage(chatId, '✅ Картка готова!');
+          const dashboardUrl = process.env.RENDER_EXTERNAL_URL || `http://localhost:${process.env.PORT || 5000}`;
+          bot.sendMessage(chatId, '✅ Картка готова!', {
+            reply_markup: {
+              inline_keyboard: [[
+                { text: "📊 Відкрити Дашборд", web_app: { url: dashboardUrl } }
+              ]]
+            }
+          });
         }
         
       } catch (err) {
