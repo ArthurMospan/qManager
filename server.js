@@ -106,10 +106,15 @@ app.get('/api/limits', (req, res) => {
 app.post('/api/sync', async (req, res) => {
   try {
     const isCron = req.query.cron === 'true';
+    const timeframe = req.query.timeframe === 'week' ? 'week' : '24h';
     
     if (!isCron) {
       const limits = getSyncLimits();
       if (limits.count >= 50) {
+        // Якщо ліміт вичерпано, просто віддаємо кеш замість помилки, якщо він є
+        if (dashboardData[timeframe] && dashboardData[timeframe].length > 0) {
+          return res.json({ success: true, data: dashboardData[timeframe], cached: true });
+        }
         return res.status(429).json({ 
           success: false, 
           error: 'Досягнуто денний ліміт ручних оновлень (50/50). Спробуйте завтра або зачекайте на фонове оновлення.' 
@@ -117,19 +122,17 @@ app.post('/api/sync', async (req, res) => {
       }
       
       const now = Date.now();
-      const cooldownMs = 5 * 60 * 1000;
+      // Кеш діє 3.5 години (трохи менше ніж крон у 4 години, щоб не було конфліктів)
+      const cooldownMs = 3.5 * 60 * 60 * 1000;
       if (now - limits.lastSync < cooldownMs) {
-        const minutesLeft = Math.ceil((cooldownMs - (now - limits.lastSync)) / 60000);
-        return res.status(429).json({ 
-          success: false, 
-          error: `⏳ Зачекайте ще ${minutesLeft} хв. перед наступним оновленням (захист від блокування ШІ).` 
-        });
+        if (dashboardData[timeframe] && dashboardData[timeframe].length > 0) {
+          return res.json({ success: true, data: dashboardData[timeframe], cached: true });
+        }
       }
       
       incrementSyncLimit();
     }
 
-    const timeframe = req.query.timeframe === 'week' ? 'week' : '24h';
     const data = await runSyncProcess(timeframe);
     res.json({ success: true, data });
   } catch (error) {
