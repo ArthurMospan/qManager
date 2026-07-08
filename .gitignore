@@ -1,0 +1,7 @@
+node_modules/
+.env
+data.json
+limits.json
+snapshots.json
+frontend/node_modules/
+.DS_Store
