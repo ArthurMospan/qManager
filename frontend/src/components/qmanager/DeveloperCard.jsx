@@ -11,8 +11,7 @@ export default function DeveloperCard({ developer, analysis, timeframe }) {
     blockers = null, 
     daily_hours = [],
     stuck_tasks = [],
-    tasks_done = 0,
-    tasks_in_progress = 0
+    taskStates = {}
   } = analysis || {};
 
   const displayHours = Number(time_tracked_hours).toFixed(1).replace(/\.0$/, '');
@@ -99,17 +98,17 @@ export default function DeveloperCard({ developer, analysis, timeframe }) {
       </div>
 
       {/* Mini Dashboard */}
-      {!isInactive && (
-        <div className="flex items-center px-6 py-3 bg-gray-50 border-b border-gray-100 gap-4 text-[12px] font-medium text-gray-600">
-          <div className="flex items-center gap-1.5 flex-1 justify-center">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-            Виконано: <span className="font-bold text-gray-900">{tasks_done}</span>
-          </div>
-          <div className="w-px h-4 bg-gray-200" />
-          <div className="flex items-center gap-1.5 flex-1 justify-center">
-            <Clock className="w-3.5 h-3.5 text-blue-500" />
-            В роботі: <span className="font-bold text-gray-900">{tasks_in_progress}</span>
-          </div>
+      {!isInactive && Object.keys(taskStates).length > 0 && (
+        <div className="flex flex-wrap items-center justify-center px-4 py-3 bg-gray-50 border-b border-gray-100 gap-x-4 gap-y-2 text-[11px] font-medium text-gray-600">
+          {Object.entries(taskStates).map(([state, count], idx, arr) => (
+            <React.Fragment key={state}>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: state === 'Done' || state === 'Виконано' ? '#10b981' : state.toLowerCase().includes('progress') || state === 'В роботі' ? '#3b82f6' : '#8b5cf6' }}></span>
+                {state}: <span className="font-bold text-gray-900">{count}</span>
+              </div>
+              {idx < arr.length - 1 && <div className="w-px h-3 bg-gray-200" />}
+            </React.Fragment>
+          ))}
         </div>
       )}
 

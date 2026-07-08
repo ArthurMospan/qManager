@@ -52,7 +52,11 @@ async function fetchAllActiveUsers() {
       fields: 'id,login,name,avatarUrl,banned'
     }
   });
-  return response.data.filter(u => !u.banned && u.name !== 'guest');
+  return response.data.filter(u => !u.banned && u.name !== 'guest').map(u => ({
+    id: u.id,
+    name: u.name,
+    avatarUrl: u.avatarUrl ? (u.avatarUrl.startsWith('http') ? u.avatarUrl : `${process.env.YOUTRACK_URL}${u.avatarUrl}`) : null
+  }));
 }
 
 const DAYS_UKR = ["Неділя", "Понеділок", "Вівторок", "Середа", "Четвер", "П'ятниця", "Субота"];
@@ -64,20 +68,15 @@ async function fetchRecentActivity(timeframe = '24h') {
     const users = await fetchAllActiveUsers();
     const grouped = {};
     
-    users.forEach(u => {
-      grouped[u.name] = {
-        developer: {
-          id: u.id,
-          name: u.name,
-          avatarUrl: u.avatarUrl ? (u.avatarUrl.startsWith('http') ? u.avatarUrl : `${YOUTRACK_URL}${u.avatarUrl}`) : null
-        },
-        totalHours: 0,
-        prevTotalHours: 0,
-        dailyHours: [0, 0, 0, 0, 0, 0, 0], // Mon, Tue, Wed, Thu, Fri, Sat, Sun
+    users.forEach(user => {
+      grouped[user.name] = {
+        developer: user,
         actions: [],
         stuckTasks: [],
-        tasksDone: 0,
-        tasksInProgress: 0
+        taskStates: {}, // Dynamic mapping of state -> count
+        totalHours: 0,
+        prevTotalHours: 0,
+        dailyHours: [0, 0, 0, 0, 0, 0, 0] // Mon..Sun
       };
     });
 
@@ -186,12 +185,8 @@ async function fetchRecentActivity(timeframe = '24h') {
         const stateField = metricIssue.customFields?.find(f => f.name === 'State');
         const stateName = stateField?.value?.name;
         
-        if (assigneeName && grouped[assigneeName]) {
-          if (stateName === 'Done' || stateName === 'Resolved' || stateName === 'Closed' || stateName === 'Fixed') {
-            grouped[assigneeName].tasksDone += 1;
-          } else if (stateName === 'In Progress' || stateName === 'В роботі') {
-            grouped[assigneeName].tasksInProgress += 1;
-          }
+        if (assigneeName && grouped[assigneeName] && stateName) {
+          grouped[assigneeName].taskStates[stateName] = (grouped[assigneeName].taskStates[stateName] || 0) + 1;
         }
       });
     } catch(e) {

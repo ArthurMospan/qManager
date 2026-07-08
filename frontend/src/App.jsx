@@ -140,92 +140,105 @@ function App() {
     <div className="flex flex-col min-h-screen bg-[#1f1f1f] p-6 lg:p-10 font-sans text-white selection:bg-blue-500/30">
       <div className="max-w-7xl mx-auto w-full flex flex-col gap-8">
         
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
-          
-          <div className="flex gap-6">
-            {!snapshotMode && (
-              <>
-                <button
-                  onClick={() => { setTimeframe('24h'); fetchDashboardData('24h'); }}
-                  className={`text-[15px] font-medium transition-all duration-200 border-b-2 pb-1 ${
-                    timeframe === '24h' 
-                      ? 'text-white border-white' 
-                      : 'text-[#888] border-transparent hover:text-gray-300'
-                  }`}
-                >
-                  Сьогодні
-                </button>
-                <button
-                  onClick={() => { setTimeframe('week'); fetchDashboardData('week'); }}
-                  className={`text-[15px] font-medium transition-all duration-200 border-b-2 pb-1 ${
-                    timeframe === 'week' 
-                      ? 'text-white border-white' 
-                      : 'text-[#888] border-transparent hover:text-gray-300'
-                  }`}
-                >
-                  Цей тиждень
-                </button>
-              </>
-            )}
-            {snapshotMode && (
-              <span className="text-[15px] font-medium text-white border-b-2 border-blue-500 pb-1">
-                Перегляд зрізу (Read-only)
-              </span>
-            )}
+        {/* Top Header Actions */}
+        <div className="flex flex-col-reverse sm:flex-row justify-between items-start sm:items-center gap-4 text-[12px] text-gray-400">
+          <div className="flex flex-col">
+            <span>Останнє оновлення: {formatLastSync(meta.lastSync)}</span>
+            <span>Ліміт оновлень: {meta.manualSyncsUsed}/{meta.manualSyncsMax}</span>
           </div>
           
-          {/* Actions */}
-          <div className="flex items-center gap-4">
-            <button 
-              onClick={copyMarkdown}
-              disabled={loading || data.length === 0}
-              className="flex items-center gap-2 text-[14px] font-medium text-[#888] hover:text-white transition-colors disabled:opacity-50"
-            >
-              <Copy className="w-4 h-4" /> MD
-            </button>
-            <button 
-              onClick={shareSnapshot}
-              disabled={loading || data.length === 0}
-              className="flex items-center gap-2 text-[14px] font-medium text-[#888] hover:text-white transition-colors disabled:opacity-50"
-            >
-              <Share2 className="w-4 h-4" /> Поділитись
-            </button>
+          <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={copyMarkdown}
+                disabled={loading || data.length === 0}
+                className="flex items-center gap-1.5 font-medium hover:text-white transition-colors disabled:opacity-50"
+              >
+                <Copy className="w-3.5 h-3.5" /> MD
+              </button>
+              <button 
+                onClick={shareSnapshot}
+                disabled={loading || data.length === 0}
+                className="flex items-center gap-1.5 font-medium hover:text-white transition-colors disabled:opacity-50"
+              >
+                <Share2 className="w-3.5 h-3.5" /> Поділитись
+              </button>
+            </div>
+            
             {!snapshotMode && (
-              <div className="flex flex-col items-end ml-2">
-                <button 
-                  onClick={triggerManualSync}
-                  disabled={loading || meta.manualSyncsUsed >= meta.manualSyncsMax}
-                  className="flex items-center gap-2 text-[14px] font-medium text-blue-400 hover:text-blue-300 transition-colors disabled:opacity-50"
-                >
-                  <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                  {loading ? 'Оновлення...' : 'Примусово оновити'}
-                </button>
-                <div className="flex flex-col text-right">
-                  <span className="text-[11px] text-gray-500 mt-1">Останнє оновлення: {formatLastSync(meta.lastSync)}</span>
-                  <span className="text-[11px] text-gray-500">Ручні оновлення: {meta.manualSyncsUsed}/{meta.manualSyncsMax}</span>
-                </div>
-              </div>
+              <button 
+                onClick={triggerManualSync}
+                disabled={loading || meta.manualSyncsUsed >= meta.manualSyncsMax}
+                className="flex items-center gap-1.5 font-bold text-blue-400 hover:text-blue-300 transition-colors disabled:opacity-50 uppercase tracking-wide"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+                {loading ? 'Оновлення...' : 'Примусово оновити'}
+              </button>
             )}
           </div>
         </div>
 
-        {/* Filters */}
-        {data.length > 0 && !snapshotMode && (
-          <div className="flex items-center gap-4 bg-[#2a2a2a] p-3 rounded-lg border border-[#333]">
-            <span className="text-sm text-gray-400 font-medium">Фільтр:</span>
-            <select
-              value={selectedDevId}
-              onChange={(e) => setSelectedDevId(e.target.value)}
-              className="bg-[#1f1f1f] text-white border border-[#444] rounded px-3 py-1.5 text-sm outline-none focus:border-blue-500 transition-colors"
+        {/* Timeframe Full-Width Tabs */}
+        {!snapshotMode ? (
+          <div className="flex w-full bg-[#2a2a2a] p-1.5 rounded-xl">
+            <button
+              onClick={() => { setTimeframe('24h'); fetchDashboardData('24h'); }}
+              className={`flex-1 py-2.5 text-center rounded-lg text-[15px] font-semibold transition-all duration-200 ${
+                timeframe === '24h' 
+                  ? 'bg-[#3a3a3a] text-white shadow-sm' 
+                  : 'text-gray-400 hover:text-gray-200 hover:bg-[#333]'
+              }`}
             >
-              <option value="all">👥 Вся команда</option>
-              {data.map(item => (
-                <option key={item.developer.id} value={item.developer.id}>
-                  {item.developer.name}
-                </option>
-              ))}
-            </select>
+              Сьогодні
+            </button>
+            <button
+              onClick={() => { setTimeframe('week'); fetchDashboardData('week'); }}
+              className={`flex-1 py-2.5 text-center rounded-lg text-[15px] font-semibold transition-all duration-200 ${
+                timeframe === 'week' 
+                  ? 'bg-[#3a3a3a] text-white shadow-sm' 
+                  : 'text-gray-400 hover:text-gray-200 hover:bg-[#333]'
+              }`}
+            >
+              Цей тиждень
+            </button>
+          </div>
+        ) : (
+          <div className="w-full text-center py-3 bg-blue-500/10 text-blue-400 rounded-xl font-medium">
+            Режим перегляду збереженого зрізу (Read-only)
+          </div>
+        )}
+
+        {/* Developer Tabs (Horizontal scroll) */}
+        {data.length > 0 && !snapshotMode && (
+          <div className="flex overflow-x-auto pb-2 gap-3 no-scrollbar" style={{ scrollbarWidth: 'none' }}>
+            <button
+              onClick={() => setSelectedDevId('all')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all shrink-0 ${
+                selectedDevId === 'all' 
+                  ? 'border-blue-500 bg-blue-500/10 text-white font-medium' 
+                  : 'border-[#444] bg-[#2a2a2a] text-gray-400 hover:bg-[#333]'
+              }`}
+            >
+              👥 Вся команда
+            </button>
+            {data.map(item => (
+              <button
+                key={item.developer.id}
+                onClick={() => setSelectedDevId(item.developer.id)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all shrink-0 ${
+                  selectedDevId === item.developer.id 
+                    ? 'border-blue-500 bg-blue-500/10 text-white font-medium' 
+                    : 'border-[#444] bg-[#2a2a2a] text-gray-400 hover:bg-[#333]'
+                }`}
+              >
+                {item.developer.avatarUrl ? (
+                  <img src={item.developer.avatarUrl} alt="" className="w-6 h-6 rounded-full object-cover" />
+                ) : (
+                  <div className="w-6 h-6 rounded-full bg-gray-600 flex items-center justify-center text-[10px]">👤</div>
+                )}
+                <span className="whitespace-nowrap text-sm">{item.developer.name}</span>
+              </button>
+            ))}
           </div>
         )}
 
