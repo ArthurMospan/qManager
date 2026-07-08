@@ -59,7 +59,7 @@ const DAYS_UKR = ["Неділя", "Понеділок", "Вівторок", "С�
 
 async function fetchRecentActivity(timeframe = '24h') {
   try {
-    const { query, startTs } = getQueryAndDateRange(timeframe);
+    const { query, startTs, prevStartTs } = getQueryAndDateRange(timeframe);
     
     const users = await fetchAllActiveUsers();
     const grouped = {};
@@ -150,17 +150,21 @@ async function fetchRecentActivity(timeframe = '24h') {
     try {
       const stuckResponse = await youtrackApi.get('/issues', {
         params: {
-          query: 'state: {In Progress} and updated: .. {Minus 5 days}',
-          fields: 'idReadable,summary,customFields(name,value(name,login))',
+          query: 'state: {In Progress}',
+          fields: 'idReadable,summary,updated,customFields(name,value(name,login))',
           $top: 200
         }
       });
       
+      const stuckThreshold = Date.now() - (5 * 24 * 60 * 60 * 1000);
+      
       stuckResponse.data.forEach(stuckIssue => {
-        const assigneeField = stuckIssue.customFields?.find(f => f.name === 'Assignee');
-        const assigneeName = assigneeField?.value?.name;
-        if (assigneeName && grouped[assigneeName]) {
-          grouped[assigneeName].stuckTasks.push(`[${stuckIssue.idReadable}] ${stuckIssue.summary}`);
+        if (stuckIssue.updated && stuckIssue.updated < stuckThreshold) {
+          const assigneeField = stuckIssue.customFields?.find(f => f.name === 'Assignee');
+          const assigneeName = assigneeField?.value?.name;
+          if (assigneeName && grouped[assigneeName]) {
+            grouped[assigneeName].stuckTasks.push(`[${stuckIssue.idReadable}] ${stuckIssue.summary}`);
+          }
         }
       });
     } catch (e) {

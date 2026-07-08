@@ -158,9 +158,9 @@ app.get('/api/snapshot/:id', (req, res) => {
   }
 });
 
-// Фонове оновлення щогодини
-cron.schedule('0 * * * *', async () => {
-  console.log('Running scheduled hourly background sync...');
+// Фонове оновлення кожні 4 години (щоб не перевищити жорсткий ліміт Gemini в 20/добу)
+cron.schedule('0 */4 * * *', async () => {
+  console.log('Running scheduled 4-hourly background sync...');
   try {
     await runSyncProcess('24h');
     await runSyncProcess('week');
