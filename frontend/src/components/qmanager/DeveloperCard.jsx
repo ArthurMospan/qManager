@@ -3,12 +3,25 @@ import { Surface, Progress, Alert } from '@/components/ui';
 import { User, CheckCircle2, Clock, AlertTriangle, Moon } from 'lucide-react';
 
 export default function DeveloperCard({ developer, analysis, timeframe }) {
-  const { summary_done = [], in_progress = [], time_tracked_hours = 0, blockers = null, daily_hours = [] } = analysis || {};
+  const { 
+    summary_done = [], 
+    in_progress = [], 
+    time_tracked_hours = 0, 
+    prev_time_tracked_hours = 0,
+    blockers = null, 
+    daily_hours = [],
+    stuck_tasks = [],
+    tasks_done = 0,
+    tasks_in_progress = 0
+  } = analysis || {};
 
   const displayHours = Number(time_tracked_hours).toFixed(1).replace(/\.0$/, '');
   const hasZeroTime = time_tracked_hours === 0;
   
-  const isInactive = summary_done.length === 0 && in_progress.length === 0 && hasZeroTime && !blockers;
+  const isInactive = summary_done.length === 0 && in_progress.length === 0 && hasZeroTime && !blockers && stuck_tasks.length === 0;
+
+  const hoursDiff = time_tracked_hours - prev_time_tracked_hours;
+  const isTrendUp = hoursDiff >= 0;
 
   const daysAbbr = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд'];
   
@@ -28,12 +41,19 @@ export default function DeveloperCard({ developer, analysis, timeframe }) {
               <User className="w-6 h-6 text-gray-400" />
             )}
           </div>
-          <div className="flex-1 min-w-0 flex justify-between items-center">
-            <h3 className="font-bold text-gray-900 text-[16px] truncate">{developer.name}</h3>
-            <div className={`text-[15px] font-bold ${hasZeroTime ? 'text-red-500' : 'text-gray-900'}`}>
-              {displayHours} <span className="text-[12px] text-gray-500 font-medium">год</span>
+            <div className="flex-1 min-w-0 flex justify-between items-center">
+              <h3 className="font-bold text-gray-900 text-[16px] truncate">{developer.name}</h3>
+              <div className="flex flex-col items-end">
+                <div className={`text-[15px] font-bold ${hasZeroTime ? 'text-red-500' : 'text-gray-900'}`}>
+                  {displayHours} <span className="text-[12px] text-gray-500 font-medium">год</span>
+                </div>
+                {!isInactive && timeframe === 'week' && prev_time_tracked_hours > 0 && (
+                  <div className={`text-[10px] font-bold flex items-center gap-0.5 ${isTrendUp ? 'text-emerald-500' : 'text-red-500'}`}>
+                    {isTrendUp ? '▲' : '▼'} {Math.abs(hoursDiff).toFixed(1)} год
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
         </div>
 
         {/* Time Tracking Progress */}
@@ -78,6 +98,21 @@ export default function DeveloperCard({ developer, analysis, timeframe }) {
         )}
       </div>
 
+      {/* Mini Dashboard */}
+      {!isInactive && (
+        <div className="flex items-center px-6 py-3 bg-gray-50 border-b border-gray-100 gap-4 text-[12px] font-medium text-gray-600">
+          <div className="flex items-center gap-1.5 flex-1 justify-center">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+            Виконано: <span className="font-bold text-gray-900">{tasks_done}</span>
+          </div>
+          <div className="w-px h-4 bg-gray-200" />
+          <div className="flex items-center gap-1.5 flex-1 justify-center">
+            <Clock className="w-3.5 h-3.5 text-blue-500" />
+            В роботі: <span className="font-bold text-gray-900">{tasks_in_progress}</span>
+          </div>
+        </div>
+      )}
+
       {isInactive ? (
         <div className="flex-1 flex flex-col items-center justify-center text-gray-400 gap-3 py-10">
           <Moon className="w-10 h-10 opacity-20" />
@@ -117,10 +152,24 @@ export default function DeveloperCard({ developer, analysis, timeframe }) {
             )}
           </div>
 
+          {/* Stuck Tasks Alert */}
+          {stuck_tasks.length > 0 && (
+            <div className="mt-2">
+              <Alert style="danger" icon={Moon}>
+                <div className="flex flex-col gap-1">
+                  <span className="text-[12px] font-bold uppercase tracking-wide">⚠️ Застрягли (без змін &gt;5 днів)</span>
+                  <ul className="list-disc pl-5 text-[13px] leading-relaxed">
+                    {stuck_tasks.map((task, idx) => <li key={idx}>{task}</li>)}
+                  </ul>
+                </div>
+              </Alert>
+            </div>
+          )}
+
           {/* Blockers */}
           {blockers && (
             <div className="mt-2">
-              <Alert style="danger" icon={AlertTriangle}>
+              <Alert style="warning" icon={AlertTriangle}>
                 <div className="text-[13px] font-medium leading-relaxed">
                   {blockers}
                 </div>

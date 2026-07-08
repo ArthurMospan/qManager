@@ -77,7 +77,13 @@ async function runSyncProcess(timeframe = '24h') {
     for (const [assigneeId, data] of Object.entries(groupedData)) {
       newDashboardData.push({
         developer: data.developer,
-        analysis: aiResults[assigneeId],
+        analysis: {
+          ...aiResults[assigneeId],
+          prev_time_tracked_hours: data.prevTotalHours || 0,
+          stuck_tasks: data.stuckTasks || [],
+          tasks_done: data.tasksDone || 0,
+          tasks_in_progress: data.tasksInProgress || 0
+        },
         lastUpdated: new Date().toISOString()
       });
     }

@@ -74,6 +74,7 @@ async function analyzeTeamActivity(groupedData, timeframe) {
     3. Any blockers they mentioned in their comments.
 
     CRITICAL RULES FOR ACCURACY (PREVENT HALLUCINATIONS):
+    - ALWAYS start each task description with its issueId in brackets (e.g., "[QT-123] Fixed the bug...").
     - DO NOT invent or assume any context. Be extremely factual.
     - If another user (like a manager) commented on the task tagging this developer, DO NOT say the developer initiated a discussion. Only report what the DEVELOPER actually did or replied.
     - If a comment is vague, summarize it using exact quotes.
