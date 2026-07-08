@@ -65,24 +65,35 @@ async function analyzeTeamActivity(groupedData, timeframe) {
 
   try {
     const prompt = `
-    You are a Technical Project Manager summarizing developer activity.
+    You are a Technical Project Manager creating a brief activity summary for developers.
     Analyze the following developers' actions for the timeframe: ${timeframeText}.
-    
-    STRICT RULES — violating any of these is unacceptable:
-    1. EVERY item in summary_done and in_progress MUST start with the task ID and name in this exact format:
-       "[ISSUE-ID] Issue Summary — what they did"
-       Example: "[AIW-123] Inventory UI — завершив розробку форми додавання"
-    2. DO NOT invent or combine issues. One item = one issue.
-    3. DO NOT describe actions from OTHER users' comments — only what THIS developer logged time on or wrote.
-    4. Keep each item SHORT: max 1 sentence.
-    5. summary_done = issues where this developer logged work OR wrote comments.
-    6. in_progress = issues that appear actively ongoing (no time logged but has recent comments, or open state).
-    7. If there is nothing to say, return empty arrays — do NOT invent filler text.
-    8. blockers = only explicit blockers/problems mentioned in developer's own comments. null if none.
-    9. ALL output text MUST be in UKRAINIAN language only.
-    ${isWeek ? '10. For week timeframe, mention which days the developer worked on each task.' : ''}
-    
-    Developers' actions:
+
+    === INPUT DATA STRUCTURE ===
+    Each developer has "actions" — a list of issues they interacted with. Each action contains:
+    - issueId: the exact YouTrack issue ID (e.g. "AIW-123")
+    - summary: the EXACT issue title from YouTrack (e.g. "Inventory Management UI")
+    - timeLoggedMinutes: time they spent
+    - comments: their own comments on this issue
+
+    === MANDATORY OUTPUT FORMAT ===
+    Each item in summary_done or in_progress MUST follow this EXACT format:
+      "[ISSUE-ID] Exact Issue Summary From Input — одне речення що саме зробили"
+
+    Example with input {issueId:"AIW-123", summary:"Inventory UI refactor"}:
+      "[AIW-123] Inventory UI refactor — завершив форму додавання товару"
+
+    === STRICT RULES (violations will break the UI) ===
+    1. Use ONLY the issueId and summary values from the INPUT DATA. NEVER invent or paraphrase issue titles.
+    2. The issue summary (title) in the output MUST be copied WORD FOR WORD from the "summary" field in input.
+    3. One output item = one input action. Never merge multiple issues into one item.
+    4. Only describe what THIS developer (the one whose data you're analyzing) did, not other people.
+    5. The description after "—" should be SHORT (max 1 sentence, 10 words max).
+    6. If there's nothing to say for a section, return an empty array []. NEVER invent filler.
+    7. blockers = ONLY if developer explicitly mentioned a problem in their own comment. Otherwise null.
+    8. ALL text MUST be in Ukrainian language only (except issue IDs and copied summaries).
+    ${isWeek ? '9. For week timeframe, mention which specific days the developer worked on each task.' : ''}
+
+    === DEVELOPER DATA TO ANALYZE ===
     ${JSON.stringify(developersToAnalyze, null, 2)}
     `;
 

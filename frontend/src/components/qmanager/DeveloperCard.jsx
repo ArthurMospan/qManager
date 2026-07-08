@@ -28,29 +28,59 @@ export default function DeveloperCard({ developer, analysis, timeframe, youtrack
   const daysAbbr = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд'];
   const maxDaily = Math.max(...daily_hours, 8);
 
+  /**
+   * Parses task strings from AI like:
+   *   "[AIW-123] Issue Summary — що зробили"
+   * Returns a rendered element with:
+   *   - clickable [AIW-123] link
+   *   - bold issue summary (the part before " — " or " - ")
+   *   - normal text for the AI description after the dash
+   */
   const renderTaskWithLink = (taskText) => {
-    if (!youtrackUrl) return taskText;
-    const regex = /\[?([A-Za-z]+-\d+)\]?/;
-    const match = taskText.match(regex);
-    if (match) {
-      const issueId = match[1];
-      const restText = taskText.replace(match[0], '').replace(/^[-:\s]+/, '');
-      return (
-        <span className="leading-relaxed">
+    // Match: optional "[", ID, optional "]", then the rest
+    const idMatch = taskText.match(/^\[?([A-Za-z]+-\d+)\]?\s*/);
+    if (!idMatch) return <span className="leading-relaxed">{taskText}</span>;
+
+    const issueId = idMatch[1];
+    const afterId = taskText.slice(idMatch[0].length).trim();
+
+    // Try to split on em-dash or " — " or " - " to get summary vs description
+    const dashMatch = afterId.match(/^([^—–\-]+?)\s*[—–]\s*(.+)$/s);
+
+    let issueSummary = '';
+    let aiDescription = '';
+
+    if (dashMatch) {
+      issueSummary = dashMatch[1].trim();
+      aiDescription = dashMatch[2].trim();
+    } else {
+      // No dash separator — treat the whole thing as summary
+      issueSummary = afterId;
+    }
+
+    return (
+      <span className="leading-relaxed">
+        {youtrackUrl ? (
           <a
             href={`${youtrackUrl}/issue/${issueId}`}
             target="_blank"
             rel="noreferrer"
-            className="text-blue-500 hover:text-blue-600 hover:underline font-semibold mr-1.5 transition-colors"
+            className="text-blue-500 hover:text-blue-600 hover:underline font-bold mr-1.5 transition-colors"
             onClick={(e) => e.stopPropagation()}
           >
             [{issueId}]
           </a>
-          {restText}
-        </span>
-      );
-    }
-    return taskText;
+        ) : (
+          <span className="text-blue-500 font-bold mr-1.5">[{issueId}]</span>
+        )}
+        {issueSummary && (
+          <span className="font-semibold text-gray-800 mr-1">{issueSummary}</span>
+        )}
+        {aiDescription && (
+          <span className="text-gray-600">— {aiDescription}</span>
+        )}
+      </span>
+    );
   };
 
   // Click on front → flip to history (ignore clicks on interactive elements)
@@ -165,22 +195,24 @@ export default function DeveloperCard({ developer, analysis, timeframe, youtrack
             )}
           </div>
 
-          {/* Task state pills */}
-          {!isInactive && Object.keys(taskStates).length > 0 && (
-            <div className="flex flex-wrap items-center justify-center px-4 py-3 bg-gray-50 border-b border-gray-100 gap-x-4 gap-y-2 text-[11px] font-medium text-gray-600">
+          {/* Task state pills — Bug #3 fix: always rendered if taskStates has data */}
+          {Object.keys(taskStates).length > 0 && (
+            <div className="flex flex-wrap items-center justify-center px-4 py-2.5 bg-gray-50 border-b border-gray-100 gap-x-3 gap-y-1.5 text-[11px] font-medium text-gray-600">
               {Object.entries(taskStates).map(([state, count], idx, arr) => (
                 <React.Fragment key={state}>
                   <div className="flex items-center gap-1.5">
                     <span
-                      className="w-2 h-2 rounded-full"
+                      className="w-2 h-2 rounded-full shrink-0"
                       style={{
                         backgroundColor:
-                          state === 'Done' || state === 'Виконано' ? '#10b981'
+                          state === 'Done' || state === 'Виконано' || state.toLowerCase().includes('done') ? '#10b981'
                           : state.toLowerCase().includes('progress') || state === 'В роботі' ? '#3b82f6'
+                          : state.toLowerCase().includes('test') || state.toLowerCase().includes('review') ? '#f59e0b'
                           : '#8b5cf6'
                       }}
                     />
-                    {state}: <span className="font-bold text-gray-900">{count}</span>
+                    <span className="text-gray-500">{state}:</span>
+                    <span className="font-bold text-gray-900">{count}</span>
                   </div>
                   {idx < arr.length - 1 && <div className="w-px h-3 bg-gray-200" />}
                 </React.Fragment>
@@ -202,7 +234,7 @@ export default function DeveloperCard({ developer, analysis, timeframe, youtrack
                     <h4 className="text-[11px] font-bold text-emerald-600 uppercase tracking-widest flex items-center gap-1.5">
                       <CheckCircle2 className="w-4 h-4" /> Виконано
                     </h4>
-                    <ul className="list-disc pl-5 text-[14px] text-gray-700 space-y-2 leading-relaxed">
+                    <ul className="list-disc pl-5 text-[13px] text-gray-700 space-y-2 leading-relaxed">
                       {summary_done.map((task, idx) => <li key={idx}>{renderTaskWithLink(task)}</li>)}
                     </ul>
                   </div>
@@ -213,7 +245,7 @@ export default function DeveloperCard({ developer, analysis, timeframe, youtrack
                     <h4 className="text-[11px] font-bold text-blue-600 uppercase tracking-widest flex items-center gap-1.5">
                       <Clock className="w-4 h-4" /> В роботі
                     </h4>
-                    <ul className="list-disc pl-5 text-[14px] text-gray-700 space-y-2 leading-relaxed">
+                    <ul className="list-disc pl-5 text-[13px] text-gray-700 space-y-2 leading-relaxed">
                       {in_progress.map((task, idx) => <li key={idx}>{renderTaskWithLink(task)}</li>)}
                     </ul>
                   </div>
@@ -246,7 +278,7 @@ export default function DeveloperCard({ developer, analysis, timeframe, youtrack
           )}
         </Surface>
 
-        {/* ── BACK (History) ── */}
+        {/* ── BACK (History) ── Bug #4 fix: proper height clamping for overflow */}
         <Surface
           className="absolute inset-0 flex flex-col bg-white rounded-xl shadow-lg border-0 overflow-hidden cursor-pointer"
           style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
@@ -266,23 +298,30 @@ export default function DeveloperCard({ developer, analysis, timeframe, youtrack
             </button>
           </div>
 
-          {/* Back content (timeline) */}
+          {/* Back content (timeline) — Bug #4: overflow-y-auto + max-h */}
           <div
-            className="flex-1 overflow-y-auto p-5 flex flex-col gap-4 bg-[#fafafa] min-h-0"
-            style={{ scrollbarWidth: 'thin' }}
+            className="overflow-y-auto p-4 flex flex-col gap-3 bg-[#fafafa]"
+            style={{
+              flex: '1 1 0',
+              minHeight: 0,
+              maxHeight: isSwipeMode ? 'calc(100vh - 200px)' : '500px',
+              scrollbarWidth: 'thin',
+              WebkitOverflowScrolling: 'touch',
+            }}
             onClick={(e) => e.stopPropagation()}
           >
             {raw_actions.length === 0 ? (
               <div className="text-[13px] text-gray-500 text-center py-10">Немає активності за цей період.</div>
             ) : (
               raw_actions.map((action, idx) => (
-                <div key={idx} className="flex flex-col gap-3 p-4 bg-white border border-gray-100 rounded-lg shadow-sm">
+                <div key={idx} className="flex flex-col gap-2 p-4 bg-white border border-gray-100 rounded-lg shadow-sm">
+                  {/* Issue ID + time badge */}
                   <div className="flex justify-between items-start gap-2">
                     <a
                       href={youtrackUrl ? `${youtrackUrl}/issue/${action.issueId}` : '#'}
                       target="_blank"
                       rel="noreferrer"
-                      className="font-bold text-[14px] text-blue-500 hover:text-blue-600 hover:underline"
+                      className="font-bold text-[14px] text-blue-500 hover:text-blue-600 hover:underline shrink-0"
                       onClick={(e) => e.stopPropagation()}
                     >
                       [{action.issueId}]
@@ -294,16 +333,18 @@ export default function DeveloperCard({ developer, analysis, timeframe, youtrack
                     )}
                   </div>
 
-                  <div className="text-[13px] text-gray-800 font-medium leading-snug">
+                  {/* Issue title — full name, no truncation */}
+                  <div className="text-[13px] text-gray-900 font-semibold leading-snug break-words">
                     {action.summary}
                   </div>
 
+                  {/* Comments */}
                   {action.comments && action.comments.length > 0 && (
-                    <div className="mt-1 flex flex-col gap-2">
+                    <div className="flex flex-col gap-2 mt-1">
                       {action.comments.map((c, i) => (
                         <div key={i} className="text-[12px] text-gray-600 bg-blue-50/50 p-3 rounded-md border border-blue-100/50 flex items-start gap-2.5">
                           <MessageSquare className="w-3.5 h-3.5 mt-0.5 shrink-0 text-blue-400" />
-                          <span className="leading-relaxed break-words whitespace-pre-wrap">{c}</span>
+                          <span className="leading-relaxed break-words whitespace-pre-wrap min-w-0">{c}</span>
                         </div>
                       ))}
                     </div>

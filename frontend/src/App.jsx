@@ -164,23 +164,39 @@ function App() {
         response = await axios.get(`/api/dashboard?timeframe=${selectedTimeframe}`);
       }
       if (response.data.success) {
-        setData(response.data.data || []);
+        const freshData = response.data.data || [];
         if (response.data.meta) setMeta(response.data.meta);
+
+        // Bug #5: If cache is empty on initial load, auto-trigger sync to get real data
+        if (freshData.length === 0 && !snapshotId) {
+          setLoading(false);
+          setSyncError(null);
+          await triggerManualSync(selectedTimeframe);
+          return;
+        }
+
+        setData(freshData);
       } else {
         throw new Error(response.data.error || 'Невідома помилка');
       }
     } catch (err) {
-      setError(err.response?.data?.error || err.message);
+      // Bug #6: On error, keep existing data visible and show banner
+      setSyncError(`Помилка завантаження: ${err.response?.data?.error || err.message}`);
+      // Only show empty error state if we have no data at all
+      if (data.length === 0) {
+        setError(err.response?.data?.error || err.message);
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const triggerManualSync = async () => {
+  const triggerManualSync = async (selectedTimeframe) => {
+    const tf = selectedTimeframe || timeframe;
     setLoading(true);
     setSyncError(null);
     try {
-      const response = await axios.post(`/api/sync?timeframe=${timeframe}`);
+      const response = await axios.post(`/api/sync?timeframe=${tf}`);
       if (response.data.success) {
         setData(response.data.data || []);
         if (response.data.meta) setMeta(response.data.meta);
@@ -191,7 +207,10 @@ function App() {
         throw new Error(response.data.error);
       }
     } catch (err) {
-      setError(err.response?.data?.error || err.message);
+      // Bug #6: On sync error, show banner but KEEP old data visible
+      const errMsg = err.response?.data?.error || err.message || 'Невідома помилка';
+      setSyncError(`Не вдалось оновити дані (${errMsg}). Показуються останні збережені дані.`);
+      // Don't clear data — keep showing stale data
     } finally {
       setLoading(false);
     }
@@ -226,7 +245,14 @@ function App() {
   const currentItem = data.find(d => d.developer.id === selectedDevId);
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#1f1f1f] font-sans text-white selection:bg-blue-500/30" style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 16px)' }}>
+    // Bug #7: Telegram safe area — use tg-viewport-stable-height and extra bottom padding
+    <div
+      className="flex flex-col min-h-screen bg-[#1f1f1f] font-sans text-white selection:bg-blue-500/30"
+      style={{
+        paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 80px)',
+        minHeight: 'var(--tg-viewport-stable-height, 100dvh)',
+      }}
+    >
       <div className="max-w-7xl mx-auto w-full flex flex-col gap-4 px-6 py-5 lg:px-10 lg:py-6">
 
         {/* ── Row 1: Brand + Actions ── */}
@@ -357,10 +383,12 @@ function App() {
 
         {/* ── Content ── */}
         {loading && data.length === 0 ? (
-          <div className="flex justify-center items-center py-32">
+          <div className="flex flex-col justify-center items-center py-32 gap-3">
             <LoadingSpinner size="lg" className="text-white opacity-50" />
+            <p className="text-[13px] text-gray-500">Завантаження даних...</p>
           </div>
-        ) : error ? (
+        ) : error && data.length === 0 ? (
+          // Bug #6: Only show full error state if there's NO data at all
           <EmptyState
             icon={AlertTriangle}
             title="Помилка завантаження"

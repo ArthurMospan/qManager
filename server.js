@@ -89,7 +89,7 @@ async function runSyncProcess(timeframe = '24h') {
           ...aiResults[assigneeId],
           prev_time_tracked_hours: data.prevTotalHours || 0,
           stuck_tasks: data.stuckTasks || [],
-          taskStates: data.taskStates || {},
+          taskStates: data.taskStates || {},  // Bug #3 fix: was missing from response
           tasks_done: data.tasksDone || 0,
           tasks_in_progress: data.tasksInProgress || 0
         },
