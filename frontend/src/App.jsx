@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import DeveloperCard from '@/components/qmanager/DeveloperCard';
 import { LoadingSpinner, EmptyState, Button } from '@/components/ui';
-import { RefreshCw, AlertTriangle, Share2, Copy, LayoutGrid, GalleryHorizontalEnd, ChevronLeft, ChevronRight } from 'lucide-react';
+import { RefreshCw, AlertTriangle, Share2, Copy, LayoutGrid, GalleryHorizontalEnd, ChevronLeft, ChevronRight, User } from 'lucide-react';
 
 function App() {
   const [data, setData] = useState([]);
@@ -336,7 +336,7 @@ function App() {
                  <div className="text-center">
                    <div className="font-bold text-[14px] text-white whitespace-nowrap overflow-hidden text-ellipsis w-28">{item.developer.name}</div>
                    <div className="text-[12px] text-gray-400 font-medium mt-1">
-                     {Number(item.analysis.time_tracked_hours).toFixed(1).replace(/\.0$/, '')} год
+                     {Number(item.analysis?.time_tracked_hours || 0).toFixed(1).replace(/\.0$/, '')} год
                    </div>
                  </div>
                </div>
