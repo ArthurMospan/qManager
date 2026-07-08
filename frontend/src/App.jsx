@@ -4,7 +4,7 @@ import DeveloperCard from '@/components/qmanager/DeveloperCard';
 import { LoadingSpinner, EmptyState, Button } from '@/components/ui';
 import {
   RefreshCw, AlertTriangle, Share2, Copy,
-  LayoutGrid, GalleryHorizontalEnd, ChevronDown, Clock, Zap, User
+  LayoutGrid, GalleryHorizontalEnd, ChevronDown, Clock, User
 } from 'lucide-react';
 
 // ── Sync dropdown ──────────────────────────────────────────────────────────
@@ -12,9 +12,10 @@ function SyncDropdown({ meta, data, loading, onSync, snapshotMode }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
+  const COOLDOWN_MS = 3.5 * 60 * 60 * 1000; // 3.5 hours
+
   const formatLastSync = (ts, dataItems) => {
     if (!ts) {
-      // Fall back to lastUpdated from the first data item
       const fallback = dataItems?.[0]?.lastUpdated;
       if (fallback) {
         const d = new Date(fallback);
@@ -25,6 +26,15 @@ function SyncDropdown({ meta, data, loading, onSync, snapshotMode }) {
     const d = new Date(ts);
     return d.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
   };
+
+  const getNextSyncTime = (ts) => {
+    if (!ts) return null;
+    const next = new Date(ts + COOLDOWN_MS);
+    return next.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const isCooldownActive = meta.lastSync && (Date.now() - meta.lastSync < COOLDOWN_MS);
+  const nextSyncTime = getNextSyncTime(meta.lastSync);
 
   useEffect(() => {
     const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
@@ -44,30 +54,29 @@ function SyncDropdown({ meta, data, loading, onSync, snapshotMode }) {
       </button>
 
       {open && (
-        <div className="absolute top-full left-0 mt-2 w-60 bg-[#2a2a2a] border border-[#3a3a3a] rounded-xl shadow-2xl z-50 overflow-hidden">
+        <div className="absolute top-full left-0 mt-2 w-64 bg-[#2a2a2a] border border-[#3a3a3a] rounded-xl shadow-2xl z-50 overflow-hidden">
+          {/* Info row */}
           <div className="px-4 py-3 border-b border-[#3a3a3a]">
-            <div className="text-[11px] text-gray-500 uppercase tracking-widest mb-2">Ліміт оновлень</div>
-            <div className="flex items-center gap-2">
-              <div className="flex-1 bg-[#1a1a1a] rounded-full h-1.5 overflow-hidden">
-                <div
-                  className="h-full bg-blue-500 rounded-full transition-all"
-                  style={{ width: `${(meta.manualSyncsUsed / meta.manualSyncsMax) * 100}%` }}
-                />
-              </div>
-              <span className="text-[12px] font-bold text-gray-300 shrink-0">
-                {meta.manualSyncsUsed}/{meta.manualSyncsMax}
-              </span>
+            <div className="text-[11px] text-gray-500 uppercase tracking-widest mb-1.5">Розклад оновлень</div>
+            <div className="text-[12px] text-gray-400">
+              Авто-оновлення кожні <span className="text-white font-semibold">4 год</span>
             </div>
+            {isCooldownActive && nextSyncTime && (
+              <div className="text-[12px] text-amber-400 mt-1">
+                Ручне оновлення доступне о <span className="font-bold">{nextSyncTime}</span>
+              </div>
+            )}
           </div>
 
           {!snapshotMode && (
             <button
               onClick={() => { setOpen(false); onSync(); }}
-              disabled={loading || meta.manualSyncsUsed >= meta.manualSyncsMax}
+              disabled={loading || isCooldownActive}
               className="w-full flex items-center gap-2.5 px-4 py-3 text-[13px] font-semibold text-blue-400 hover:bg-blue-500/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              title={isCooldownActive ? `Наступне оновлення о ${nextSyncTime}` : ''}
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              {loading ? 'Оновлення...' : 'Примусово оновити'}
+              {loading ? 'Оновлення...' : isCooldownActive ? `Доступно о ${nextSyncTime}` : 'Оновити зараз'}
             </button>
           )}
         </div>
@@ -89,6 +98,11 @@ function App() {
   const [viewMode, setViewMode] = useState('swipe');
   const [syncError, setSyncError] = useState(null);
 
+  // Animation state for swipe transitions
+  const [slideDir, setSlideDir] = useState(0); // -1 = slide left (next), 1 = slide right (prev)
+  const [isSliding, setIsSliding] = useState(false);
+  const slideTimeoutRef = useRef(null);
+
   // Set 'all' as default when data loads
   useEffect(() => {
     if (data.length > 0 && !selectedDevId) {
@@ -98,15 +112,27 @@ function App() {
 
   const currentIdx = data.findIndex(d => d.developer.id === selectedDevId);
 
+  // Animated navigation
+  const navigateTo = (newId, dir) => {
+    if (isSliding) return;
+    setSlideDir(dir);
+    setIsSliding(true);
+    clearTimeout(slideTimeoutRef.current);
+    slideTimeoutRef.current = setTimeout(() => {
+      setSelectedDevId(newId);
+      setIsSliding(false);
+    }, 180);
+  };
+
   const goNextDev = () => {
-    if (currentIdx < data.length - 1) setSelectedDevId(data[currentIdx + 1].developer.id);
+    if (currentIdx < data.length - 1) navigateTo(data[currentIdx + 1].developer.id, -1);
   };
 
   const goPrevDev = () => {
-    if (currentIdx > 0) setSelectedDevId(data[currentIdx - 1].developer.id);
+    if (currentIdx > 0) navigateTo(data[currentIdx - 1].developer.id, 1);
   };
 
-  // Touch swipe for swipe mode
+  // Touch swipe
   const touchStartX = useRef(0);
   const touchDeltaX = useRef(0);
 
@@ -167,7 +193,6 @@ function App() {
         const freshData = response.data.data || [];
         if (response.data.meta) setMeta(response.data.meta);
 
-        // Bug #5: If cache is empty on initial load, auto-trigger sync to get real data
         if (freshData.length === 0 && !snapshotId) {
           setLoading(false);
           setSyncError(null);
@@ -180,9 +205,7 @@ function App() {
         throw new Error(response.data.error || 'Невідома помилка');
       }
     } catch (err) {
-      // Bug #6: On error, keep existing data visible and show banner
       setSyncError(`Помилка завантаження: ${err.response?.data?.error || err.message}`);
-      // Only show empty error state if we have no data at all
       if (data.length === 0) {
         setError(err.response?.data?.error || err.message);
       }
@@ -207,10 +230,8 @@ function App() {
         throw new Error(response.data.error);
       }
     } catch (err) {
-      // Bug #6: On sync error, show banner but KEEP old data visible
       const errMsg = err.response?.data?.error || err.message || 'Невідома помилка';
       setSyncError(`Не вдалось оновити дані (${errMsg}). Показуються останні збережені дані.`);
-      // Don't clear data — keep showing stale data
     } finally {
       setLoading(false);
     }
@@ -244,11 +265,25 @@ function App() {
 
   const currentItem = data.find(d => d.developer.id === selectedDevId);
 
+  // Slide animation styles
+  const slideStyle = isSliding
+    ? {
+        opacity: 0,
+        transform: `translateX(${slideDir * 40}px)`,
+        transition: 'opacity 0.18s ease, transform 0.18s ease',
+      }
+    : {
+        opacity: 1,
+        transform: 'translateX(0)',
+        transition: 'opacity 0.18s ease, transform 0.18s ease',
+      };
+
   return (
-    // Bug #7: Telegram safe area — use tg-viewport-stable-height and extra bottom padding
     <div
-      className="flex flex-col min-h-screen bg-[#1f1f1f] font-sans text-white selection:bg-blue-500/30"
+      className="flex flex-col bg-[#1f1f1f] font-sans text-white selection:bg-blue-500/30"
       style={{
+        // Telegram Mini App safe areas: top for header, bottom for nav bar
+        paddingTop: 'env(safe-area-inset-top, 0px)',
         paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 80px)',
         minHeight: 'var(--tg-viewport-stable-height, 100dvh)',
       }}
@@ -306,7 +341,7 @@ function App() {
           </div>
         </div>
 
-        {/* ── Timeframe tabs (compact height) ── */}
+        {/* ── Timeframe tabs ── */}
         {!snapshotMode ? (
           <div className="flex w-full bg-[#2a2a2a] p-1 rounded-lg">
             <button
@@ -361,7 +396,11 @@ function App() {
             {data.map(item => (
               <button
                 key={item.developer.id}
-                onClick={() => setSelectedDevId(item.developer.id)}
+                onClick={() => {
+                  const newIdx = data.findIndex(d => d.developer.id === item.developer.id);
+                  const dir = newIdx > currentIdx ? -1 : 1;
+                  navigateTo(item.developer.id, dir);
+                }}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all shrink-0 ${
                   selectedDevId === item.developer.id
                     ? 'border-blue-500 bg-blue-500/10 text-white font-medium'
@@ -388,7 +427,6 @@ function App() {
             <p className="text-[13px] text-gray-500">Завантаження даних...</p>
           </div>
         ) : error && data.length === 0 ? (
-          // Bug #6: Only show full error state if there's NO data at all
           <EmptyState
             icon={AlertTriangle}
             title="Помилка завантаження"
@@ -398,11 +436,11 @@ function App() {
         ) : data.length === 0 ? (
           <EmptyState title="Немає даних" description="За обраний період нічого не знайдено." />
         ) : viewMode === 'swipe' && selectedDevId === 'all' ? (
-          /* ── ALL DEVS GRID (Navigation) ── */
+          /* ── ALL DEVS GRID ── */
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 mt-2">
             {data.map(item => (
-               <div 
-                 key={item.developer.id} 
+               <div
+                 key={item.developer.id}
                  onClick={() => setSelectedDevId(item.developer.id)}
                  className="flex flex-col items-center gap-3 p-6 bg-[#2a2a2a] hover:bg-[#333] hover:scale-105 rounded-2xl cursor-pointer transition-all border border-[#333]"
                >
@@ -421,16 +459,17 @@ function App() {
             ))}
           </div>
         ) : viewMode === 'swipe' ? (
-          /* ── SWIPE MODE: one card, tabs navigate ── */
+          /* ── SWIPE MODE: animated card ── */
           <div
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
             className="flex justify-center w-full"
           >
-            <div className="w-full max-w-lg">
+            <div className="w-full max-w-lg" style={slideStyle}>
               {currentItem && (
                 <DeveloperCard
+                  key={currentItem.developer.id}
                   developer={currentItem.developer}
                   analysis={currentItem.analysis}
                   timeframe={timeframe}

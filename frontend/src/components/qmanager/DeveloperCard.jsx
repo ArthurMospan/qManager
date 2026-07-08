@@ -83,13 +83,13 @@ export default function DeveloperCard({ developer, analysis, timeframe, youtrack
     );
   };
 
-  // Click on front → flip to history (ignore clicks on interactive elements)
+  // Full-card click flips to history
   const handleFrontClick = (e) => {
     if (e.target.closest('button, a, input, select')) return;
-    if (!isInactive && raw_actions.length > 0) setIsFlipped(true);
+    if (raw_actions.length > 0) setIsFlipped(true);
   };
 
-  // Click on back → flip to front
+  // Click back card body → flip to front
   const handleBackClick = () => setIsFlipped(false);
 
   return (
@@ -113,7 +113,7 @@ export default function DeveloperCard({ developer, analysis, timeframe, youtrack
         <Surface
           className={`flex flex-col bg-white rounded-xl shadow-lg border-0 overflow-hidden transition-shadow
             ${isInactive ? 'opacity-50 grayscale-[0.5]' : 'hover:shadow-xl'}
-            ${!isInactive && raw_actions.length > 0 ? 'cursor-pointer' : ''}
+            ${raw_actions.length > 0 ? 'cursor-pointer' : ''}
           `}
           style={{ backfaceVisibility: 'hidden', height: isSwipeMode ? '100%' : 'auto' }}
           onClick={handleFrontClick}
@@ -195,28 +195,33 @@ export default function DeveloperCard({ developer, analysis, timeframe, youtrack
             )}
           </div>
 
-          {/* Task state pills — Bug #3 fix: always rendered if taskStates has data */}
+          {/* Task state pills — exact YouTrack status colors */}
           {Object.keys(taskStates).length > 0 && (
-            <div className="flex flex-wrap items-center justify-center px-4 py-2.5 bg-gray-50 border-b border-gray-100 gap-x-3 gap-y-1.5 text-[11px] font-medium text-gray-600">
-              {Object.entries(taskStates).map(([state, count], idx, arr) => (
-                <React.Fragment key={state}>
-                  <div className="flex items-center gap-1.5">
-                    <span
-                      className="w-2 h-2 rounded-full shrink-0"
-                      style={{
-                        backgroundColor:
-                          state === 'Done' || state === 'Виконано' || state.toLowerCase().includes('done') ? '#10b981'
-                          : state.toLowerCase().includes('progress') || state === 'В роботі' ? '#3b82f6'
-                          : state.toLowerCase().includes('test') || state.toLowerCase().includes('review') ? '#f59e0b'
-                          : '#8b5cf6'
-                      }}
-                    />
-                    <span className="text-gray-500">{state}:</span>
-                    <span className="font-bold text-gray-900">{count}</span>
-                  </div>
-                  {idx < arr.length - 1 && <div className="w-px h-3 bg-gray-200" />}
-                </React.Fragment>
-              ))}
+            <div className="flex flex-wrap items-center justify-center px-4 py-2.5 bg-gray-50 border-b border-gray-100 gap-x-3 gap-y-1.5 text-[11px] font-medium">
+              {Object.entries(taskStates).map(([state, count], idx, arr) => {
+                // Exact mapping for this YouTrack instance's states
+                const colorMap = {
+                  'Done':               { dot: '#10b981', text: 'text-emerald-700', bg: 'bg-emerald-50' },
+                  'Done (MAIN)':        { dot: '#059669', text: 'text-emerald-800', bg: 'bg-emerald-100' },
+                  'Виконано і закрито': { dot: '#6ee7b7', text: 'text-emerald-600', bg: 'bg-emerald-50' },
+                  'In Progress':        { dot: '#3b82f6', text: 'text-blue-700',    bg: 'bg-blue-50' },
+                  'В роботі':           { dot: '#60a5fa', text: 'text-blue-600',    bg: 'bg-blue-50' },
+                  'To Verify':          { dot: '#f59e0b', text: 'text-amber-700',   bg: 'bg-amber-50' },
+                  'Open':               { dot: '#9ca3af', text: 'text-gray-600',    bg: 'bg-gray-100' },
+                  'Заплановано':        { dot: '#a78bfa', text: 'text-violet-700',  bg: 'bg-violet-50' },
+                };
+                const c = colorMap[state] || { dot: '#d1d5db', text: 'text-gray-500', bg: 'bg-gray-50' };
+                return (
+                  <React.Fragment key={state}>
+                    <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full ${c.bg}`}>
+                      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: c.dot }} />
+                      <span className={`${c.text} font-medium`}>{state}</span>
+                      <span className={`${c.text} font-bold`}>{count}</span>
+                    </div>
+                    {idx < arr.length - 1 && <div className="w-px h-3 bg-gray-200" />}
+                  </React.Fragment>
+                );
+              })}
             </div>
           )}
 
