@@ -14,7 +14,15 @@ app.use(cors());
 app.use(express.json());
 
 // Serve static files from the React frontend app
-app.use(express.static(path.join(__dirname, 'frontend/dist')));
+// Cache assets (they have content hash in filename from Vite) but NEVER cache index.html
+app.use(express.static(path.join(__dirname, 'frontend/dist'), {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('index.html')) {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+    }
+  }
+}));
 
 const DATA_FILE = path.join(__dirname, 'data.json');
 const SNAPSHOTS_FILE = path.join(__dirname, 'snapshots.json');
@@ -200,6 +208,8 @@ cron.schedule('0 */4 * * *', async () => {
 require('./bot'); 
 
 app.get(/.*/, (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
   res.sendFile(path.join(__dirname, 'frontend/dist', 'index.html'));
 });
 

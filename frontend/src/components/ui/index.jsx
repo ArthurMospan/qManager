@@ -16,9 +16,9 @@ const PADDING = {
   xxl:  'p-[32px]',
 };
 
-export function Surface({ variant = 'panel', padding = 'md', className = '', children }) {
+export function Surface({ variant = 'panel', padding = 'md', className = '', style, children }) {
   return (
-    <div className={`${VARIANTS[variant] ?? VARIANTS.panel} ${PADDING[padding] ?? PADDING.md} ${className}`}>
+    <div className={`${VARIANTS[variant] ?? VARIANTS.panel} ${PADDING[padding] ?? PADDING.md} ${className}`} style={style}>
       {children}
     </div>
   );
