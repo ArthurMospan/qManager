@@ -2,7 +2,7 @@ import React from 'react';
 import { Surface, Progress, Alert } from '@/components/ui';
 import { User, CheckCircle2, Clock, AlertTriangle, Moon } from 'lucide-react';
 
-export default function DeveloperCard({ developer, analysis, timeframe }) {
+export default function DeveloperCard({ developer, analysis, timeframe, youtrackUrl }) {
   const { 
     summary_done = [], 
     in_progress = [], 
@@ -26,6 +26,30 @@ export default function DeveloperCard({ developer, analysis, timeframe }) {
   
   // Find max daily hours to scale the mini-chart
   const maxDaily = Math.max(...daily_hours, 8); // At least scale to 8h
+
+  const renderTaskWithLink = (taskText) => {
+    if (!youtrackUrl) return taskText;
+    const regex = /\[?([A-Za-z]+-\d+)\]?/;
+    const match = taskText.match(regex);
+    if (match) {
+      const issueId = match[1];
+      const restText = taskText.replace(match[0], '').replace(/^[-:\s]+/, '');
+      return (
+        <span className="leading-relaxed">
+          <a 
+            href={`${youtrackUrl}/issue/${issueId}`} 
+            target="_blank" 
+            rel="noreferrer" 
+            className="text-blue-500 hover:text-blue-600 hover:underline font-semibold mr-1.5 transition-colors"
+          >
+            [{issueId}]
+          </a>
+          {restText}
+        </span>
+      );
+    }
+    return taskText;
+  };
 
   return (
     <Surface className={`flex flex-col h-full bg-white rounded-xl shadow-lg border-0 overflow-hidden transition-all duration-300 ${isInactive ? 'opacity-50 grayscale-[0.5]' : 'hover:scale-[1.02] hover:shadow-xl'}`}>
@@ -128,7 +152,7 @@ export default function DeveloperCard({ developer, analysis, timeframe }) {
                   <CheckCircle2 className="w-4 h-4" /> Виконано
                 </h4>
                 <ul className="list-disc pl-5 text-[14px] text-gray-700 space-y-2 leading-relaxed">
-                  {summary_done.map((task, idx) => <li key={idx}>{task}</li>)}
+                  {summary_done.map((task, idx) => <li key={idx}>{renderTaskWithLink(task)}</li>)}
                 </ul>
               </div>
             )}
@@ -139,7 +163,7 @@ export default function DeveloperCard({ developer, analysis, timeframe }) {
                   <Clock className="w-4 h-4" /> В роботі
                 </h4>
                 <ul className="list-disc pl-5 text-[14px] text-gray-700 space-y-2 leading-relaxed">
-                  {in_progress.map((task, idx) => <li key={idx}>{task}</li>)}
+                  {in_progress.map((task, idx) => <li key={idx}>{renderTaskWithLink(task)}</li>)}
                 </ul>
               </div>
             )}
@@ -158,7 +182,7 @@ export default function DeveloperCard({ developer, analysis, timeframe }) {
                 <div className="flex flex-col gap-1">
                   <span className="text-[12px] font-bold uppercase tracking-wide">⚠️ Застрягли (без змін &gt;5 днів)</span>
                   <ul className="list-disc pl-5 text-[13px] leading-relaxed">
-                    {stuck_tasks.map((task, idx) => <li key={idx}>{task}</li>)}
+                    {stuck_tasks.map((task, idx) => <li key={idx}>{renderTaskWithLink(task)}</li>)}
                   </ul>
                 </div>
               </Alert>

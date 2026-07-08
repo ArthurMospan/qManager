@@ -95,10 +95,12 @@ function App() {
       const response = await axios.post(`/api/sync?timeframe=${timeframe}`);
       if (response.data.success) {
         setData(response.data.data || []);
+        if (response.data.meta) {
+          setMeta(response.data.meta);
+        }
       } else {
         throw new Error(response.data.error);
       }
-      fetchLimits();
     } catch (err) {
       setError(err.response?.data?.error || err.message);
     } finally {
@@ -267,6 +269,7 @@ function App() {
                 developer={item.developer} 
                 analysis={item.analysis} 
                 timeframe={timeframe}
+                youtrackUrl={meta.youtrackUrl}
               />
             ))}
           </div>

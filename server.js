@@ -113,7 +113,12 @@ app.post('/api/sync', async (req, res) => {
       if (limits.count >= 50) {
         // Якщо ліміт вичерпано, просто віддаємо кеш замість помилки, якщо він є
         if (dashboardData[timeframe] && dashboardData[timeframe].length > 0) {
-          return res.json({ success: true, data: dashboardData[timeframe], cached: true });
+          return res.json({ 
+            success: true, 
+            data: dashboardData[timeframe], 
+            meta: { lastSync: limits.lastSync, manualSyncsUsed: limits.count, manualSyncsMax: 50, youtrackUrl: process.env.YOUTRACK_URL },
+            cached: true 
+          });
         }
         return res.status(429).json({ 
           success: false, 
@@ -126,7 +131,12 @@ app.post('/api/sync', async (req, res) => {
       const cooldownMs = 3.5 * 60 * 60 * 1000;
       if (now - limits.lastSync < cooldownMs) {
         if (dashboardData[timeframe] && dashboardData[timeframe].length > 0) {
-          return res.json({ success: true, data: dashboardData[timeframe], cached: true });
+          return res.json({ 
+            success: true, 
+            data: dashboardData[timeframe], 
+            meta: { lastSync: limits.lastSync, manualSyncsUsed: limits.count, manualSyncsMax: 50, youtrackUrl: process.env.YOUTRACK_URL },
+            cached: true 
+          });
         }
       }
       
@@ -134,7 +144,12 @@ app.post('/api/sync', async (req, res) => {
     }
 
     const data = await runSyncProcess(timeframe);
-    res.json({ success: true, data });
+    const updatedLimits = getSyncLimits();
+    res.json({ 
+      success: true, 
+      data,
+      meta: { lastSync: updatedLimits.lastSync, manualSyncsUsed: updatedLimits.count, manualSyncsMax: 50, youtrackUrl: process.env.YOUTRACK_URL }
+    });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -149,7 +164,8 @@ app.get('/api/dashboard', (req, res) => {
     meta: {
       lastSync: limits.lastSync,
       manualSyncsUsed: limits.count,
-      manualSyncsMax: 50
+      manualSyncsMax: 50,
+      youtrackUrl: process.env.YOUTRACK_URL
     }
   });
 });

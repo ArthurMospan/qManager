@@ -172,13 +172,20 @@ async function fetchRecentActivity(timeframe = '24h') {
     
     // Fetch dashboard metrics (Done vs In Progress this timeframe)
     try {
+      // Query: All unresolved tasks assigned to someone, PLUS tasks that were updated (e.g. resolved) in this timeframe
+      const metricsQuery = `has: Assignee and (#Unresolved or updated: {${timeframe === 'week' ? 'This week' : 'Today'}})`;
       const metricsResponse = await youtrackApi.get('/issues', {
         params: {
-          query: `updated: {${timeframe === 'week' ? 'This week' : 'Today'}}`,
+          query: metricsQuery,
           fields: 'idReadable,customFields(name,value(name,login))',
           $top: 500
         }
       });
+      
+      // Clear task states first, to re-count them perfectly
+      for (const username in grouped) {
+        grouped[username].taskStates = {};
+      }
       metricsResponse.data.forEach(metricIssue => {
         const assigneeField = metricIssue.customFields?.find(f => f.name === 'Assignee');
         const assigneeName = assigneeField?.value?.name;
