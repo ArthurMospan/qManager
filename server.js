@@ -4,7 +4,7 @@ const cron = require('node-cron');
 const fs = require('fs');
 const path = require('path');
 const { fetchRecentActivity } = require('./services/youtrack');
-const { analyzeDeveloperActivity } = require('./services/ai');
+const { analyzeTeamActivity } = require('./services/ai');
 const crypto = require('crypto');
 
 const app = express();
@@ -70,18 +70,16 @@ async function runSyncProcess(timeframe = '24h') {
     const groupedData = await fetchRecentActivity(timeframe);
     const newDashboardData = [];
 
+    // Process everyone at once
+    console.log(`[SYNC] Processing AI for the entire team in one batch...`);
+    const aiResults = await analyzeTeamActivity(groupedData, timeframe);
+    
     for (const [assigneeId, data] of Object.entries(groupedData)) {
-      console.log(`[SYNC] Processing AI for developer: ${data.developer.name}`);
-      const aiAnalysis = await analyzeDeveloperActivity(data, timeframe);
-      
       newDashboardData.push({
         developer: data.developer,
-        analysis: aiAnalysis,
+        analysis: aiResults[assigneeId],
         lastUpdated: new Date().toISOString()
       });
-      
-      // Delay to avoid Gemini API Rate Limits (15 RPM free tier)
-      await sleep(4500);
     }
 
     dashboardData[timeframe] = newDashboardData;
