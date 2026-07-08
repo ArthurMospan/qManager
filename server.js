@@ -89,6 +89,7 @@ async function runSyncProcess(timeframe = '24h') {
           ...aiResults[assigneeId],
           prev_time_tracked_hours: data.prevTotalHours || 0,
           stuck_tasks: data.stuckTasks || [],
+          taskStates: data.taskStates || {},
           tasks_done: data.tasksDone || 0,
           tasks_in_progress: data.tasksInProgress || 0
         },
@@ -159,6 +160,17 @@ app.post('/api/sync', async (req, res) => {
       meta: { lastSync: updatedLimits.lastSync, manualSyncsUsed: updatedLimits.count, manualSyncsMax: 50, youtrackUrl: process.env.YOUTRACK_URL }
     });
   } catch (error) {
+    // On error, return cached data with error flag so UI can show something
+    const limits = getSyncLimits();
+    if (dashboardData[timeframe] && dashboardData[timeframe].length > 0) {
+      return res.json({
+        success: true,
+        data: dashboardData[timeframe],
+        meta: { lastSync: limits.lastSync, manualSyncsUsed: limits.count, manualSyncsMax: 50, youtrackUrl: process.env.YOUTRACK_URL },
+        cached: true,
+        syncError: error.message
+      });
+    }
     res.status(500).json({ success: false, error: error.message });
   }
 });

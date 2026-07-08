@@ -65,27 +65,24 @@ async function analyzeTeamActivity(groupedData, timeframe) {
 
   try {
     const prompt = `
-    You are a Technical Project Manager. 
-    Analyze the following developers' SPECIFIC ACTIONS for the timeframe: ${timeframeText}.
+    You are a Technical Project Manager summarizing developer activity.
+    Analyze the following developers' actions for the timeframe: ${timeframeText}.
     
-    Extract for EACH developer:
-    1. Tasks they made progress on or completed (based ONLY on their time logged and their own comments). 
-       ${isWeek ? 'IMPORTANT: Include the day(s) of the week they worked on each task in the description.' : ''}
-    2. What they are currently working on.
-    3. Any blockers they mentioned in their comments.
-
-    CRITICAL RULES FOR ACCURACY (PREVENT HALLUCINATIONS):
-    - ALWAYS start each task description with its issueId in brackets (e.g., "[QT-123] Fixed the bug...").
-    - DO NOT invent or assume any context. Be extremely factual.
-    - If another user (like a manager) commented on the task tagging this developer, DO NOT say the developer initiated a discussion. Only report what the DEVELOPER actually did or replied.
-    - If a comment is vague, summarize it using exact quotes.
-    - Keep it short, professional, and clear.
-
-    CRITICAL REQUIREMENT: 
-    ALL generated text MUST be strictly in UKRAINIAN language. 
-    Do NOT output any English text. Keep descriptions concise.
-
-    Developers' specific actions today/this week:
+    STRICT RULES — violating any of these is unacceptable:
+    1. EVERY item in summary_done and in_progress MUST start with the task ID and name in this exact format:
+       "[ISSUE-ID] Issue Summary — what they did"
+       Example: "[AIW-123] Inventory UI — завершив розробку форми додавання"
+    2. DO NOT invent or combine issues. One item = one issue.
+    3. DO NOT describe actions from OTHER users' comments — only what THIS developer logged time on or wrote.
+    4. Keep each item SHORT: max 1 sentence.
+    5. summary_done = issues where this developer logged work OR wrote comments.
+    6. in_progress = issues that appear actively ongoing (no time logged but has recent comments, or open state).
+    7. If there is nothing to say, return empty arrays — do NOT invent filler text.
+    8. blockers = only explicit blockers/problems mentioned in developer's own comments. null if none.
+    9. ALL output text MUST be in UKRAINIAN language only.
+    ${isWeek ? '10. For week timeframe, mention which days the developer worked on each task.' : ''}
+    
+    Developers' actions:
     ${JSON.stringify(developersToAnalyze, null, 2)}
     `;
 

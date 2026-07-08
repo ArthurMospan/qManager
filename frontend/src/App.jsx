@@ -8,12 +8,20 @@ import {
 } from 'lucide-react';
 
 // ── Sync dropdown ──────────────────────────────────────────────────────────
-function SyncDropdown({ meta, loading, onSync, snapshotMode }) {
+function SyncDropdown({ meta, data, loading, onSync, snapshotMode }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
-  const formatLastSync = (ts) => {
-    if (!ts) return 'Ніколи';
+  const formatLastSync = (ts, dataItems) => {
+    if (!ts) {
+      // Fall back to lastUpdated from the first data item
+      const fallback = dataItems?.[0]?.lastUpdated;
+      if (fallback) {
+        const d = new Date(fallback);
+        return d.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
+      }
+      return 'Ніколи';
+    }
     const d = new Date(ts);
     return d.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
   };
@@ -31,7 +39,7 @@ function SyncDropdown({ meta, loading, onSync, snapshotMode }) {
         className="flex items-center gap-1.5 text-[12px] text-gray-400 hover:text-gray-200 transition-colors"
       >
         <Clock className="w-3.5 h-3.5" />
-        Оновлено: {formatLastSync(meta.lastSync)}
+        Оновлено: {formatLastSync(meta.lastSync, data)}
         <ChevronDown className={`w-3 h-3 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
@@ -79,11 +87,12 @@ function App() {
   const [meta, setMeta] = useState({ lastSync: 0, manualSyncsUsed: 0, manualSyncsMax: 50 });
   const [selectedDevId, setSelectedDevId] = useState(null);
   const [viewMode, setViewMode] = useState('swipe');
+  const [syncError, setSyncError] = useState(null);
 
-  // Set first dev as default when data loads
+  // Set 'all' as default when data loads
   useEffect(() => {
     if (data.length > 0 && !selectedDevId) {
-      setSelectedDevId(data[0].developer.id);
+      setSelectedDevId('all');
     }
   }, [data]);
 
@@ -169,12 +178,15 @@ function App() {
 
   const triggerManualSync = async () => {
     setLoading(true);
-    setError(null);
+    setSyncError(null);
     try {
       const response = await axios.post(`/api/sync?timeframe=${timeframe}`);
       if (response.data.success) {
         setData(response.data.data || []);
         if (response.data.meta) setMeta(response.data.meta);
+        if (response.data.syncError) {
+          setSyncError(`Не вдалось отримати свіжі дані: ${response.data.syncError}. Показуються останні збережені дані.`);
+        }
       } else {
         throw new Error(response.data.error);
       }
@@ -214,7 +226,7 @@ function App() {
   const currentItem = data.find(d => d.developer.id === selectedDevId);
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#1f1f1f] font-sans text-white selection:bg-blue-500/30">
+    <div className="flex flex-col min-h-screen bg-[#1f1f1f] font-sans text-white selection:bg-blue-500/30" style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 16px)' }}>
       <div className="max-w-7xl mx-auto w-full flex flex-col gap-4 px-6 py-5 lg:px-10 lg:py-6">
 
         {/* ── Row 1: Brand + Actions ── */}
@@ -244,6 +256,7 @@ function App() {
         <div className="flex items-center justify-between">
           <SyncDropdown
             meta={meta}
+            data={data}
             loading={loading}
             onSync={triggerManualSync}
             snapshotMode={snapshotMode}
@@ -297,9 +310,28 @@ function App() {
           </div>
         )}
 
+        {/* ── Sync error banner ── */}
+        {syncError && (
+          <div className="flex items-start gap-3 px-4 py-3 bg-yellow-500/10 border border-yellow-500/30 rounded-xl text-[12px] text-yellow-400">
+            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+            <span className="flex-1">{syncError}</span>
+            <button onClick={() => setSyncError(null)} className="text-yellow-500 hover:text-yellow-300 shrink-0">×</button>
+          </div>
+        )}
+
         {/* ── Developer tabs (swipe mode) ── */}
         {viewMode === 'swipe' && data.length > 0 && !snapshotMode && (
           <div className="flex overflow-x-auto gap-2 pb-0.5" style={{ scrollbarWidth: 'none' }}>
+            <button
+              onClick={() => setSelectedDevId('all')}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all shrink-0 ${
+                selectedDevId === 'all'
+                  ? 'border-blue-500 bg-blue-500/10 text-white font-medium'
+                  : 'border-[#444] bg-[#2a2a2a] text-gray-400 hover:bg-[#333]'
+              }`}
+            >
+              👥 Вся команда
+            </button>
             {data.map(item => (
               <button
                 key={item.developer.id}
@@ -337,6 +369,29 @@ function App() {
           />
         ) : data.length === 0 ? (
           <EmptyState title="Немає даних" description="За обраний період нічого не знайдено." />
+        ) : viewMode === 'swipe' && selectedDevId === 'all' ? (
+          /* ── ALL DEVS GRID (Navigation) ── */
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 mt-2">
+            {data.map(item => (
+               <div 
+                 key={item.developer.id} 
+                 onClick={() => setSelectedDevId(item.developer.id)}
+                 className="flex flex-col items-center gap-3 p-6 bg-[#2a2a2a] hover:bg-[#333] hover:scale-105 rounded-2xl cursor-pointer transition-all border border-[#333]"
+               >
+                 {item.developer.avatarUrl ? (
+                   <img src={item.developer.avatarUrl} className="w-20 h-20 rounded-full object-cover border-2 border-[#444]" alt={item.developer.name} />
+                 ) : (
+                   <div className="w-20 h-20 rounded-full bg-[#444] flex items-center justify-center border-2 border-[#555]"><User className="w-8 h-8 text-gray-400" /></div>
+                 )}
+                 <div className="text-center">
+                   <div className="font-bold text-[14px] text-white whitespace-nowrap overflow-hidden text-ellipsis w-28">{item.developer.name}</div>
+                   <div className="text-[12px] text-gray-400 font-medium mt-1">
+                     {Number(item.analysis?.time_tracked_hours || 0).toFixed(1).replace(/\.0$/, '')} год
+                   </div>
+                 </div>
+               </div>
+            ))}
+          </div>
         ) : viewMode === 'swipe' ? (
           /* ── SWIPE MODE: one card, tabs navigate ── */
           <div

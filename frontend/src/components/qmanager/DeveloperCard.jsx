@@ -268,7 +268,7 @@ export default function DeveloperCard({ developer, analysis, timeframe, youtrack
 
           {/* Back content (timeline) */}
           <div
-            className="flex-1 overflow-y-auto p-5 flex flex-col gap-4 bg-[#fafafa]"
+            className="flex-1 overflow-y-auto p-5 flex flex-col gap-4 bg-[#fafafa] min-h-0"
             style={{ scrollbarWidth: 'thin' }}
             onClick={(e) => e.stopPropagation()}
           >

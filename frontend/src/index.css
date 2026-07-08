@@ -3,3 +3,14 @@
 @theme {
   --color-canvas: #f4f4f5;
 }
+
+/* Telegram Web App: safe area padding for bottom navigation bar */
+body {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Ensure text wraps properly in history cards */
+.break-word-all {
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
