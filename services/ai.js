@@ -129,7 +129,8 @@ async function analyzeTeamActivity(groupedData, timeframe) {
           in_progress: devResult.in_progress,
           blockers: devResult.blockers,
           time_tracked_hours: groupedData[devId].totalHours || 0,
-          daily_hours: groupedData[devId].dailyHours || [0,0,0,0,0,0,0]
+          daily_hours: groupedData[devId].dailyHours || [0,0,0,0,0,0,0],
+          raw_actions: groupedData[devId].actions || []
         };
       }
     }
@@ -142,7 +143,8 @@ async function analyzeTeamActivity(groupedData, timeframe) {
           in_progress: [],
           blockers: null,
           time_tracked_hours: groupedData[dev.developerId].totalHours || 0,
-          daily_hours: groupedData[dev.developerId].dailyHours || [0,0,0,0,0,0,0]
+          daily_hours: groupedData[dev.developerId].dailyHours || [0,0,0,0,0,0,0],
+          raw_actions: groupedData[dev.developerId].actions || []
         };
       }
     }
@@ -157,7 +159,8 @@ async function analyzeTeamActivity(groupedData, timeframe) {
         in_progress: [`Помилка ШІ: ${error.message || error}`],
         blockers: null,
         time_tracked_hours: groupedData[dev.developerId].totalHours || 0,
-        daily_hours: groupedData[dev.developerId].dailyHours || [0,0,0,0,0,0,0]
+        daily_hours: groupedData[dev.developerId].dailyHours || [0,0,0,0,0,0,0],
+        raw_actions: groupedData[dev.developerId].actions || []
       };
     }
     return results;
