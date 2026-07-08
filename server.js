@@ -62,6 +62,8 @@ function incrementSyncLimit() {
   fs.writeFileSync(LIMITS_FILE, JSON.stringify(limits));
 }
 
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
 async function runSyncProcess(timeframe = '24h') {
   console.log(`[SYNC] Starting YouTrack -> AI sync process for timeframe: ${timeframe}...`);
   try {
@@ -77,6 +79,9 @@ async function runSyncProcess(timeframe = '24h') {
         analysis: aiAnalysis,
         lastUpdated: new Date().toISOString()
       });
+      
+      // Delay to avoid Gemini API Rate Limits (15 RPM free tier)
+      await sleep(4500);
     }
 
     dashboardData[timeframe] = newDashboardData;
