@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import DeveloperCard from '@/components/qmanager/DeveloperCard';
 import { LoadingSpinner, EmptyState, Button } from '@/components/ui';
-import { RefreshCw, AlertTriangle, Share2, Copy } from 'lucide-react';
+import { RefreshCw, AlertTriangle, Share2, Copy, LayoutGrid, GalleryHorizontalEnd, ChevronLeft, ChevronRight } from 'lucide-react';
 
 function App() {
   const [data, setData] = useState([]);
@@ -13,6 +13,48 @@ function App() {
   const [singleDevMode, setSingleDevMode] = useState(null);
   const [meta, setMeta] = useState({ lastSync: 0, manualSyncsUsed: 0, manualSyncsMax: 50 });
   const [selectedDevId, setSelectedDevId] = useState('all');
+  const [viewMode, setViewMode] = useState('swipe');
+  
+  // Swipe handling
+  const [touchStart, setTouchStart] = useState(null);
+  const [touchEnd, setTouchEnd] = useState(null);
+
+  const onTouchStart = (e) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEndHandler = () => {
+    if (!touchStart || !touchEnd || selectedDevId === 'all') return;
+    const distance = touchStart - touchEnd;
+    const minSwipeDistance = 50;
+    
+    const currentIndex = data.findIndex(d => d.developer.id === selectedDevId);
+    if (currentIndex === -1) return;
+
+    if (distance > minSwipeDistance && currentIndex < data.length - 1) {
+      // Swiped left, go to next
+      setSelectedDevId(data[currentIndex + 1].developer.id);
+    }
+    if (distance < -minSwipeDistance && currentIndex > 0) {
+      // Swiped right, go to previous
+      setSelectedDevId(data[currentIndex - 1].developer.id);
+    }
+  };
+
+  const goNextDev = () => {
+    const currentIndex = data.findIndex(d => d.developer.id === selectedDevId);
+    if (currentIndex < data.length - 1) setSelectedDevId(data[currentIndex + 1].developer.id);
+  };
+
+  const goPrevDev = () => {
+    const currentIndex = data.findIndex(d => d.developer.id === selectedDevId);
+    if (currentIndex > 0) setSelectedDevId(data[currentIndex - 1].developer.id);
+  };
   
   // Basic markdown generator
   const copyMarkdown = () => {
@@ -167,6 +209,23 @@ function App() {
               </button>
             </div>
             
+            <div className="flex items-center gap-2 bg-[#2a2a2a] p-1 rounded-lg">
+              <button 
+                onClick={() => setViewMode('list')}
+                className={`p-1.5 rounded-md transition-colors ${viewMode === 'list' ? 'bg-[#444] text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                title="Режим списку"
+              >
+                <LayoutGrid className="w-4 h-4" />
+              </button>
+              <button 
+                onClick={() => setViewMode('swipe')}
+                className={`p-1.5 rounded-md transition-colors ${viewMode === 'swipe' ? 'bg-[#444] text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                title="Режим свайпів"
+              >
+                <GalleryHorizontalEnd className="w-4 h-4" />
+              </button>
+            </div>
+            
             {!snapshotMode && (
               <button 
                 onClick={triggerManualSync}
@@ -261,17 +320,66 @@ function App() {
             title="Немає даних" 
             description="За обраний період нічого не знайдено."
           />
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
-            {(selectedDevId === 'all' ? data : data.filter(d => d.developer.id === selectedDevId)).map((item, index) => (
-              <DeveloperCard 
-                key={item.developer?.id || index} 
-                developer={item.developer} 
-                analysis={item.analysis} 
-                timeframe={timeframe}
-                youtrackUrl={meta.youtrackUrl}
-              />
+        ) : selectedDevId === 'all' && viewMode === 'swipe' ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {data.map(item => (
+               <div 
+                 key={item.developer.id} 
+                 onClick={() => setSelectedDevId(item.developer.id)}
+                 className="flex flex-col items-center gap-3 p-6 bg-[#2a2a2a] hover:bg-[#333] hover:scale-105 rounded-2xl cursor-pointer transition-all border border-[#333]"
+               >
+                 {item.developer.avatarUrl ? (
+                   <img src={item.developer.avatarUrl} className="w-20 h-20 rounded-full object-cover border-2 border-[#444]" alt={item.developer.name} />
+                 ) : (
+                   <div className="w-20 h-20 rounded-full bg-[#444] flex items-center justify-center border-2 border-[#555]"><User className="w-8 h-8 text-gray-400" /></div>
+                 )}
+                 <div className="text-center">
+                   <div className="font-bold text-[14px] text-white whitespace-nowrap overflow-hidden text-ellipsis w-28">{item.developer.name}</div>
+                   <div className="text-[12px] text-gray-400 font-medium mt-1">
+                     {Number(item.analysis.time_tracked_hours).toFixed(1).replace(/\.0$/, '')} год
+                   </div>
+                 </div>
+               </div>
             ))}
+          </div>
+        ) : (
+          <div 
+            className={`w-full ${viewMode === 'swipe' && selectedDevId !== 'all' ? 'flex justify-center' : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch'}`}
+            onTouchStart={viewMode === 'swipe' ? onTouchStart : undefined}
+            onTouchMove={viewMode === 'swipe' ? onTouchMove : undefined}
+            onTouchEnd={viewMode === 'swipe' ? onTouchEndHandler : undefined}
+          >
+            {viewMode === 'swipe' && selectedDevId !== 'all' && (
+              <button 
+                onClick={goPrevDev} 
+                disabled={data.findIndex(d => d.developer.id === selectedDevId) === 0}
+                className="hidden md:flex items-center justify-center p-4 text-gray-500 hover:text-white disabled:opacity-20 transition-colors mr-4"
+              >
+                <ChevronLeft className="w-10 h-10" />
+              </button>
+            )}
+
+            <div className={viewMode === 'swipe' && selectedDevId !== 'all' ? 'w-full max-w-lg min-h-[500px]' : 'w-full h-full'}>
+              {(selectedDevId === 'all' ? data : data.filter(d => d.developer.id === selectedDevId)).map((item, index) => (
+                <DeveloperCard 
+                  key={item.developer?.id || index} 
+                  developer={item.developer} 
+                  analysis={item.analysis} 
+                  timeframe={timeframe}
+                  youtrackUrl={meta.youtrackUrl}
+                />
+              ))}
+            </div>
+
+            {viewMode === 'swipe' && selectedDevId !== 'all' && (
+              <button 
+                onClick={goNextDev} 
+                disabled={data.findIndex(d => d.developer.id === selectedDevId) === data.length - 1}
+                className="hidden md:flex items-center justify-center p-4 text-gray-500 hover:text-white disabled:opacity-20 transition-colors ml-4"
+              >
+                <ChevronRight className="w-10 h-10" />
+              </button>
+            )}
           </div>
         )}
       </div>
