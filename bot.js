@@ -126,7 +126,13 @@ bot.on('callback_query', async (callbackQuery) => {
         const browser = await puppeteer.launch({
           headless: "new",
           defaultViewport: { width: 500, height: 800 },
-          args: ['--no-sandbox', '--disable-setuid-sandbox']
+          args: [
+            '--no-sandbox', 
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
+            '--single-process'
+          ]
         });
         
         let sentCount = 0;
@@ -167,7 +173,11 @@ bot.on('callback_query', async (callbackQuery) => {
           const url = `http://localhost:${PORT}/?devId=${encodeURIComponent(developer.id)}&timeframe=${timeframe}`;
           
           try {
-            await page.goto(url, { waitUntil: 'networkidle0', timeout: 15000 });
+            await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
+            
+            // Wait for React to finish rendering the card
+            await page.waitForSelector('#capture-card', { timeout: 10000 });
+            
             const cardElement = await page.$('#capture-card');
             
             if (cardElement) {
