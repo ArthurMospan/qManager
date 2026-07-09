@@ -98,10 +98,17 @@ function App() {
   const [viewMode, setViewMode] = useState('swipe');
   const [syncError, setSyncError] = useState(null);
 
-  // Animation state for swipe transitions
-  const [slideDir, setSlideDir] = useState(0); // -1 = slide left (next), 1 = slide right (prev)
-  const [isSliding, setIsSliding] = useState(false);
-  const slideTimeoutRef = useRef(null);
+  // Telegram SDK Init
+  useEffect(() => {
+    if (window.Telegram?.WebApp) {
+      const tg = window.Telegram.WebApp;
+      tg.expand();
+      if (tg.disableVerticalSwipes) tg.disableVerticalSwipes();
+      tg.ready();
+    }
+  }, []);
+
+  const scrollContainerRef = useRef(null);
 
   // Set 'all' as default when data loads
   useEffect(() => {
@@ -112,46 +119,31 @@ function App() {
 
   const currentIdx = data.findIndex(d => d.developer.id === selectedDevId);
 
-  // Animated navigation
-  const navigateTo = (newId, dir) => {
-    if (isSliding) return;
-    setSlideDir(dir);
-    setIsSliding(true);
-    clearTimeout(slideTimeoutRef.current);
-    slideTimeoutRef.current = setTimeout(() => {
-      setSelectedDevId(newId);
-      setIsSliding(false);
-    }, 180);
-  };
-
-  const goNextDev = () => {
-    if (currentIdx < data.length - 1) navigateTo(data[currentIdx + 1].developer.id, -1);
-  };
-
-  const goPrevDev = () => {
-    if (currentIdx > 0) navigateTo(data[currentIdx - 1].developer.id, 1);
-  };
-
-  // Touch swipe
-  const touchStartX = useRef(0);
-  const touchDeltaX = useRef(0);
-
-  const handleTouchStart = (e) => {
-    touchStartX.current = e.touches[0].clientX;
-    touchDeltaX.current = 0;
-  };
-
-  const handleTouchMove = (e) => {
-    touchDeltaX.current = e.touches[0].clientX - touchStartX.current;
-  };
-
-  const handleTouchEnd = () => {
-    const dx = touchDeltaX.current;
-    if (Math.abs(dx) > 60) {
-      if (dx < 0) goNextDev();
-      else goPrevDev();
+  // Animated navigation & touch swipe (Using native CSS scroll snap now)
+  const scrollToCard = (id) => {
+    setSelectedDevId(id);
+    const el = document.getElementById(`dev-card-${id}`);
+    if (el && scrollContainerRef.current) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
     }
   };
+  
+  useEffect(() => {
+    if (viewMode !== 'swipe' || selectedDevId === 'all' || !scrollContainerRef.current) return;
+    
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting && e.intersectionRatio >= 0.5) {
+          setSelectedDevId(e.target.dataset.id);
+        }
+      });
+    }, { root: scrollContainerRef.current, threshold: 0.5 });
+    
+    const els = document.querySelectorAll('.snap-card');
+    els.forEach(el => observer.observe(el));
+    
+    return () => observer.disconnect();
+  }, [viewMode, data]);
 
   const copyMarkdown = () => {
     let md = `# qManager Звіт (${timeframe === 'week' ? 'Цей тиждень' : 'Сьогодні'})\n\n`;
@@ -265,25 +257,12 @@ function App() {
 
   const currentItem = data.find(d => d.developer.id === selectedDevId);
 
-  // Slide animation styles
-  const slideStyle = isSliding
-    ? {
-        opacity: 0,
-        transform: `translateX(${slideDir * 40}px)`,
-        transition: 'opacity 0.18s ease, transform 0.18s ease',
-      }
-    : {
-        opacity: 1,
-        transform: 'translateX(0)',
-        transition: 'opacity 0.18s ease, transform 0.18s ease',
-      };
-
   return (
     <div
       className="flex flex-col bg-[#1f1f1f] font-sans text-white selection:bg-blue-500/30"
       style={{
         // Telegram Mini App safe areas: top for header, bottom for nav bar
-        paddingTop: 'env(safe-area-inset-top, 0px)',
+        paddingTop: 'calc(env(safe-area-inset-top, 24px) + 32px)',
         paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 80px)',
         minHeight: 'var(--tg-viewport-stable-height, 100dvh)',
       }}
@@ -391,16 +370,12 @@ function App() {
                   : 'border-[#444] bg-[#2a2a2a] text-gray-400 hover:bg-[#333]'
               }`}
             >
-              👥 Вся команда
+              Всі
             </button>
             {data.map(item => (
               <button
                 key={item.developer.id}
-                onClick={() => {
-                  const newIdx = data.findIndex(d => d.developer.id === item.developer.id);
-                  const dir = newIdx > currentIdx ? -1 : 1;
-                  navigateTo(item.developer.id, dir);
-                }}
+                onClick={() => scrollToCard(item.developer.id)}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all shrink-0 ${
                   selectedDevId === item.developer.id
                     ? 'border-blue-500 bg-blue-500/10 text-white font-medium'
@@ -436,48 +411,87 @@ function App() {
         ) : data.length === 0 ? (
           <EmptyState title="Немає даних" description="За обраний період нічого не знайдено." />
         ) : viewMode === 'swipe' && selectedDevId === 'all' ? (
-          /* ── ALL DEVS GRID ── */
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 mt-2">
-            {data.map(item => (
-               <div
-                 key={item.developer.id}
-                 onClick={() => setSelectedDevId(item.developer.id)}
-                 className="flex flex-col items-center gap-3 p-6 bg-[#2a2a2a] hover:bg-[#333] hover:scale-105 rounded-2xl cursor-pointer transition-all border border-[#333]"
-               >
-                 {item.developer.avatarUrl ? (
-                   <img src={item.developer.avatarUrl} className="w-20 h-20 rounded-full object-cover border-2 border-[#444]" alt={item.developer.name} />
-                 ) : (
-                   <div className="w-20 h-20 rounded-full bg-[#444] flex items-center justify-center border-2 border-[#555]"><User className="w-8 h-8 text-gray-400" /></div>
-                 )}
-                 <div className="text-center">
-                   <div className="font-bold text-[14px] text-white whitespace-nowrap overflow-hidden text-ellipsis w-28">{item.developer.name}</div>
-                   <div className="text-[12px] text-gray-400 font-medium mt-1">
-                     {Number(item.analysis?.time_tracked_hours || 0).toFixed(1).replace(/\.0$/, '')} год
+          /* ── ALL DEVS GRID & CHART ── */
+          <div className="flex flex-col gap-6 mt-2">
+            {/* Simple Bar Chart */}
+            <div className="bg-[#2a2a2a] p-5 rounded-2xl border border-[#333]">
+              <h3 className="text-[14px] font-bold text-gray-200 mb-4 flex items-center gap-2">
+                <Clock className="w-4 h-4 text-blue-400" /> Активність команди
+              </h3>
+              <div className="flex flex-col gap-3">
+                {data.map(item => {
+                  const hours = Number(item.analysis?.time_tracked_hours || 0);
+                  const maxHours = Math.max(...data.map(d => Number(d.analysis?.time_tracked_hours || 0)), 8);
+                  const pct = Math.max((hours / maxHours) * 100, 2);
+                  return (
+                    <div key={item.developer.id} className="flex items-center gap-3">
+                      <div className="w-6 h-6 rounded-full overflow-hidden shrink-0 bg-[#444] flex items-center justify-center">
+                        {item.developer.avatarUrl ? (
+                          <img src={item.developer.avatarUrl} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <User className="w-3 h-3 text-gray-400" />
+                        )}
+                      </div>
+                      <div className="w-24 text-[11px] font-medium text-gray-300 truncate shrink-0">
+                        {item.developer.name}
+                      </div>
+                      <div className="flex-1 h-2.5 bg-[#1f1f1f] rounded-full overflow-hidden">
+                        <div className="h-full bg-blue-500 rounded-full" style={{ width: `${pct}%` }} />
+                      </div>
+                      <div className="w-10 text-right text-[11px] font-bold text-gray-400 shrink-0">
+                        {hours.toFixed(1)} г
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              {data.map(item => (
+                 <div
+                   key={item.developer.id}
+                   onClick={() => scrollToCard(item.developer.id)}
+                   className="flex flex-col items-center gap-3 p-6 bg-[#2a2a2a] hover:bg-[#333] hover:scale-105 rounded-2xl cursor-pointer transition-all border border-[#333]"
+                 >
+                   {item.developer.avatarUrl ? (
+                     <img src={item.developer.avatarUrl} className="w-20 h-20 rounded-full object-cover border-2 border-[#444]" alt={item.developer.name} />
+                   ) : (
+                     <div className="w-20 h-20 rounded-full bg-[#444] flex items-center justify-center border-2 border-[#555]"><User className="w-8 h-8 text-gray-400" /></div>
+                   )}
+                   <div className="text-center">
+                     <div className="font-bold text-[14px] text-white whitespace-nowrap overflow-hidden text-ellipsis w-28">{item.developer.name}</div>
+                     <div className="text-[12px] text-gray-400 font-medium mt-1">
+                       {Number(item.analysis?.time_tracked_hours || 0).toFixed(1).replace(/\.0$/, '')} год
+                     </div>
                    </div>
                  </div>
-               </div>
-            ))}
+              ))}
+            </div>
           </div>
         ) : viewMode === 'swipe' ? (
-          /* ── SWIPE MODE: animated card ── */
+          /* ── SWIPE MODE: Native CSS Scroll Snap ── */
           <div
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-            className="flex justify-center w-full"
+            ref={scrollContainerRef}
+            className="flex overflow-x-auto snap-x snap-mandatory gap-4 w-full px-2 py-2 -mx-2 no-scrollbar"
+            style={{ scrollBehavior: 'smooth' }}
           >
-            <div className="w-full max-w-lg" style={slideStyle}>
-              {currentItem && (
+            {data.map(item => (
+              <div 
+                key={item.developer.id} 
+                id={`dev-card-${item.developer.id}`}
+                data-id={item.developer.id}
+                className="snap-card min-w-[88%] sm:min-w-[400px] snap-center shrink-0"
+              >
                 <DeveloperCard
-                  key={currentItem.developer.id}
-                  developer={currentItem.developer}
-                  analysis={currentItem.analysis}
+                  developer={item.developer}
+                  analysis={item.analysis}
                   timeframe={timeframe}
                   youtrackUrl={meta.youtrackUrl}
                   isSwipeMode={true}
                 />
-              )}
-            </div>
+              </div>
+            ))}
           </div>
         ) : (
           /* ── LIST / GRID MODE ── */

@@ -83,11 +83,11 @@ export default function DeveloperCard({ developer, analysis, timeframe, youtrack
     );
   };
 
-  // Full-card click flips to history
-  const handleFrontClick = (e) => {
-    if (e.target.closest('button, a, input, select')) return;
-    if (raw_actions.length > 0) setIsFlipped(true);
-  };
+  // Full-card click flips to history (removed per user request)
+  // const handleFrontClick = (e) => {
+  //   if (e.target.closest('button, a, input, select')) return;
+  //   if (raw_actions.length > 0) setIsFlipped(true);
+  // };
 
   // Click back card body → flip to front
   const handleBackClick = () => setIsFlipped(false);
@@ -113,10 +113,8 @@ export default function DeveloperCard({ developer, analysis, timeframe, youtrack
         <Surface
           className={`flex flex-col bg-white rounded-xl shadow-lg border-0 overflow-hidden transition-shadow
             ${isInactive ? 'opacity-50 grayscale-[0.5]' : 'hover:shadow-xl'}
-            ${raw_actions.length > 0 ? 'cursor-pointer' : ''}
           `}
           style={{ backfaceVisibility: 'hidden', height: isSwipeMode ? '100%' : 'auto' }}
-          onClick={handleFrontClick}
         >
           {/* Header Profile */}
           <div className="p-6 pb-4 flex flex-col gap-4 border-b border-gray-100">
@@ -141,12 +139,12 @@ export default function DeveloperCard({ developer, analysis, timeframe, youtrack
                       </div>
                     )}
                   </div>
-                  {/* Flip button — visible hint that card is flippable */}
+                  {/* Flip button — distinct gray circle */}
                   {!isInactive && raw_actions.length > 0 && (
                     <button
                       onClick={(e) => { e.stopPropagation(); setIsFlipped(true); }}
-                      className="text-gray-400 hover:text-blue-500 p-2 -mr-2 rounded-full hover:bg-blue-50 transition-colors"
-                      title="Показати історію YouTrack"
+                      className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-700 transition-colors border border-gray-200 shadow-sm ml-2"
+                      title="Показати історію дій"
                     >
                       <RotateCw className="w-4 h-4" />
                     </button>
@@ -201,21 +199,21 @@ export default function DeveloperCard({ developer, analysis, timeframe, youtrack
               {Object.entries(taskStates).map(([state, count], idx, arr) => {
                 // Exact mapping for this YouTrack instance's states
                 const colorMap = {
-                  'Done':               { dot: '#10b981', text: 'text-emerald-700', bg: 'bg-emerald-50' },
-                  'Done (MAIN)':        { dot: '#059669', text: 'text-emerald-800', bg: 'bg-emerald-100' },
-                  'Виконано і закрито': { dot: '#6ee7b7', text: 'text-emerald-600', bg: 'bg-emerald-50' },
-                  'In Progress':        { dot: '#3b82f6', text: 'text-blue-700',    bg: 'bg-blue-50' },
-                  'В роботі':           { dot: '#60a5fa', text: 'text-blue-600',    bg: 'bg-blue-50' },
-                  'To Verify':          { dot: '#f59e0b', text: 'text-amber-700',   bg: 'bg-amber-50' },
-                  'Open':               { dot: '#9ca3af', text: 'text-gray-600',    bg: 'bg-gray-100' },
-                  'Заплановано':        { dot: '#a78bfa', text: 'text-violet-700',  bg: 'bg-violet-50' },
+                  'Done':               { dot: '#10b981', text: 'text-emerald-700', bg: 'bg-emerald-50', label: 'Виконано' },
+                  'Done (MAIN)':        { dot: '#059669', text: 'text-emerald-800', bg: 'bg-emerald-100', label: 'Виконано (MAIN)' },
+                  'Виконано і закрито': { dot: '#6ee7b7', text: 'text-emerald-600', bg: 'bg-emerald-50', label: 'Закрито' },
+                  'In Progress':        { dot: '#3b82f6', text: 'text-blue-700',    bg: 'bg-blue-50', label: 'В роботі' },
+                  'В роботі':           { dot: '#60a5fa', text: 'text-blue-600',    bg: 'bg-blue-50', label: 'В роботі' },
+                  'To Verify':          { dot: '#f59e0b', text: 'text-amber-700',   bg: 'bg-amber-50', label: 'На перевірку' },
+                  'Open':               { dot: '#9ca3af', text: 'text-gray-600',    bg: 'bg-gray-100', label: 'Відкрито' },
+                  'Заплановано':        { dot: '#a78bfa', text: 'text-violet-700',  bg: 'bg-violet-50', label: 'Заплановано' },
                 };
-                const c = colorMap[state] || { dot: '#d1d5db', text: 'text-gray-500', bg: 'bg-gray-50' };
+                const c = colorMap[state] || { dot: '#d1d5db', text: 'text-gray-500', bg: 'bg-gray-50', label: state };
                 return (
                   <React.Fragment key={state}>
                     <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full ${c.bg}`}>
                       <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: c.dot }} />
-                      <span className={`${c.text} font-medium`}>{state}</span>
+                      <span className={`${c.text} font-medium`}>{c.label}</span>
                       <span className={`${c.text} font-bold`}>{count}</span>
                     </div>
                     {idx < arr.length - 1 && <div className="w-px h-3 bg-gray-200" />}
