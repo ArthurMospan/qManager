@@ -143,7 +143,7 @@ export default function DeveloperCard({ developer, analysis, timeframe, youtrack
                   {!isInactive && raw_actions.length > 0 && (
                     <button
                       onClick={(e) => { e.stopPropagation(); setIsFlipped(true); }}
-                      className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-700 transition-colors border border-gray-200 shadow-sm ml-2"
+                      className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-700 transition-colors border border-gray-200 shadow-sm ml-2 shrink-0"
                       title="Показати історію дій"
                     >
                       <RotateCw className="w-4 h-4" />

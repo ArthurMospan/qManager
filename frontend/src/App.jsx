@@ -127,23 +127,30 @@ function App() {
       el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
     }
   };
-  
-  useEffect(() => {
-    if (viewMode !== 'swipe' || selectedDevId === 'all' || !scrollContainerRef.current) return;
+
+  const handleScroll = () => {
+    if (!scrollContainerRef.current || viewMode !== 'swipe') return;
+    const container = scrollContainerRef.current;
+    const center = container.scrollLeft + container.clientWidth / 2;
     
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(e => {
-        if (e.isIntersecting && e.intersectionRatio >= 0.5) {
-          setSelectedDevId(e.target.dataset.id);
-        }
-      });
-    }, { root: scrollContainerRef.current, threshold: 0.5 });
+    let closestId = null;
+    let minDiff = Infinity;
     
-    const els = document.querySelectorAll('.snap-card');
-    els.forEach(el => observer.observe(el));
+    const cards = container.querySelectorAll('.snap-card');
+    cards.forEach(card => {
+      // card.offsetLeft is relative to the container if container is relative
+      const cardCenter = card.offsetLeft + card.offsetWidth / 2;
+      const diff = Math.abs(cardCenter - center);
+      if (diff < minDiff) {
+        minDiff = diff;
+        closestId = card.dataset.id;
+      }
+    });
     
-    return () => observer.disconnect();
-  }, [viewMode, data]);
+    if (closestId && closestId !== selectedDevId) {
+      setSelectedDevId(closestId);
+    }
+  };
 
   const copyMarkdown = () => {
     let md = `# qManager Звіт (${timeframe === 'week' ? 'Цей тиждень' : 'Сьогодні'})\n\n`;
@@ -473,7 +480,8 @@ function App() {
           /* ── SWIPE MODE: Native CSS Scroll Snap ── */
           <div
             ref={scrollContainerRef}
-            className="flex overflow-x-auto snap-x snap-mandatory gap-4 w-full px-2 py-2 -mx-2 no-scrollbar"
+            onScroll={handleScroll}
+            className="flex overflow-x-auto snap-x snap-mandatory gap-4 w-full px-2 py-2 -mx-2 no-scrollbar items-start relative"
             style={{ scrollBehavior: 'smooth' }}
           >
             {data.map(item => (
@@ -481,7 +489,7 @@ function App() {
                 key={item.developer.id} 
                 id={`dev-card-${item.developer.id}`}
                 data-id={item.developer.id}
-                className="snap-card min-w-[88%] sm:min-w-[400px] snap-center shrink-0"
+                className="snap-card min-w-[88%] sm:min-w-[400px] snap-center shrink-0 h-fit"
               >
                 <DeveloperCard
                   developer={item.developer}
