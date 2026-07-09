@@ -104,6 +104,12 @@ function App() {
       const tg = window.Telegram.WebApp;
       tg.expand();
       if (tg.disableVerticalSwipes) tg.disableVerticalSwipes();
+      
+      // Match the app's dark theme
+      if (tg.setHeaderColor) tg.setHeaderColor('#1f1f1f');
+      if (tg.setBackgroundColor) tg.setBackgroundColor('#1f1f1f');
+      if (tg.setBottomBarColor) tg.setBottomBarColor('#1f1f1f');
+      
       tg.ready();
     }
   }, []);
