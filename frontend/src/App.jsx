@@ -269,8 +269,8 @@ function App() {
       className="flex flex-col bg-[#1f1f1f] font-sans text-white selection:bg-blue-500/30"
       style={{
         // Telegram Mini App safe areas: top for header, bottom for nav bar
-        paddingTop: 'calc(env(safe-area-inset-top, 24px) + 32px)',
-        paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 80px)',
+        paddingTop: 'calc(var(--tg-safe-area-inset-top, env(safe-area-inset-top, 24px)) + 56px)',
+        paddingBottom: 'max(var(--tg-safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)), 80px)',
         minHeight: 'var(--tg-viewport-stable-height, 100dvh)',
       }}
     >
@@ -489,7 +489,7 @@ function App() {
                 key={item.developer.id} 
                 id={`dev-card-${item.developer.id}`}
                 data-id={item.developer.id}
-                className="snap-card min-w-[88%] sm:min-w-[400px] snap-center shrink-0 h-fit"
+                className="snap-card w-[88vw] max-w-[88vw] sm:w-[400px] sm:max-w-[400px] snap-center flex-none h-fit"
               >
                 <DeveloperCard
                   developer={item.developer}
